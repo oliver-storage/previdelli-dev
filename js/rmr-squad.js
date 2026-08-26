@@ -13,7 +13,12 @@
    handoff, se existir, ou o histórico da conversa que introduziu esta
    versão). Resumo das decisões:
    - Andares e médicos são 100% dinâmicos (quem tiver lançamento aparece).
-   - "Prd. úteis" = turnos_disponibilizados da aba Metas.
+   - "Turnos utilizados" = combinações distintas de (data,turno) com
+     lançamento naquele mês — não é mais digitado, é calculado.
+   - "Valor da meta"/"Previsto" = Turnos utilizados × Vr mínimo por
+     profissional (aba Metas) — substituiu os antigos "Turnos
+     disponibilizados" e "Meta de quantidade" (digitados à mão), que não
+     são mais usados em lugar nenhum do sistema.
    - "Meta per." = meta acumulada (soma corrida) do ano até aquele mês.
    - Categorias (a partir do campo "procedimento" + "exames" + "biopsias"):
      CONSULTA→Consultas, CIRURGIA→Cirurgias, USG ou campo Exame preenchido
@@ -51,14 +56,11 @@ function squadCategoria(registro){
   return 'Procedimentos';
 }
 
-// Retorno (procedimento) atrelado a uma consulta particular (convênio vazio
-// ou "PARTICULAR", mesma convenção usada no resto do sistema pra convênio
-// não informado = particular). Card pedido especificamente pro card de
-// cada médico na RMR.
-function squadEhRetornoConsultaParticular(registro){
-  const proc = String(registro.procedimento||'').trim().toUpperCase();
-  const conv = String(registro.convenio||'').trim().toUpperCase();
-  return proc==='RETORNO' && (conv==='' || conv==='PARTICULAR');
+// Retorno (procedimento) — conta TODO Retorno, não importa o convênio (a
+// versão anterior só contava Retorno + convênio particular; o usuário
+// pediu pra tirar esse filtro e contar Retorno de forma geral).
+function squadEhRetorno(registro){
+  return String(registro.procedimento||'').trim().toUpperCase() === 'RETORNO';
 }
 
 
@@ -359,24 +361,28 @@ function squadRenderMedico(andar, prof, mesRef, ano, anoAnterior, registrosAndar
 
   // "Dados de atendimento" — Meta per. é a meta ACUMULADA (soma corrida)
   // até aquele mês, não o valor isolado do mês (esse é a coluna Previsto).
+  // Previsto = Turnos Utilizados SALVO na aba Metas (editável — vem
+  // sugerido com a contagem real, mas o usuário pode ajustar) × Vr
+  // mínimo esperado por turno daquele profissional.
   let metaAcumulada = 0;
   const linhasAtendimento = mesesAteRef.map(mes=>{
     const doMes = registrosProfAno.filter(r=>r.mes===mes);
     const doMesAnterior = registrosProfAnoAnterior.filter(r=>r.mes===mes);
     const metaDoMes = metasProf.find(m=>m.mes===mes) || {};
-    const prdUteis = Number(metaDoMes.turnos_disponibilizados)||0;
-    const previsto = Number(metaDoMes.meta_valor)||0;
+    const turnosUsados = new Set(doMes.map(r=>r.data+'_'+r.turno)).size;
+    const turnosMeta = Number(metaDoMes.turnos_utilizados)||0;
+    const vrMinimo = Number(metaDoMes.valor_minimo_turno)||0;
+    const previsto = turnosMeta * vrMinimo;
     metaAcumulada += previsto;
     const realizadoAno = doMes.reduce((s,r)=>s+(Number(r.valor)||0),0);
     const realizadoAnoAnterior = doMesAnterior.reduce((s,r)=>s+(Number(r.valor)||0),0);
-    const turnosUsados = new Set(doMes.map(r=>r.data+'_'+r.turno)).size;
     const mediaPer = turnosUsados ? realizadoAno/turnosUsados : 0;
-    return {mes, prdUteis, previsto, realizadoAno, realizadoAnoAnterior, metaPer: metaAcumulada, mediaPer};
+    return {mes, prdUteis:turnosUsados, previsto, realizadoAno, realizadoAnoAnterior, metaPer: metaAcumulada, mediaPer};
   });
 
 
   const tabelaAtendimentoHtml = `<div class="tabela-scroll"><table>
-    <thead><tr><th>Mês</th><th>Prd. úteis</th><th>Previsto</th><th>Realizado ${ano}</th><th>Realizado ${anoAnterior}</th><th>Meta per.</th><th>Média per.</th></tr></thead>
+    <thead><tr><th>Mês</th><th>Turnos utilizados</th><th>Valor da meta</th><th>Realizado ${ano}</th><th>Realizado ${anoAnterior}</th><th>Meta per.</th><th>Média per.</th></tr></thead>
     <tbody>${linhasAtendimento.map(l=>`
       <tr><td>${l.mes}</td><td>${l.prdUteis||'—'}</td><td class="mono">${l.previsto?formatarMoeda(l.previsto):'—'}</td>
       <td class="mono">${formatarMoeda(l.realizadoAno)}</td><td class="mono">${formatarMoeda(l.realizadoAnoAnterior)}</td>
@@ -393,8 +399,8 @@ function squadRenderMedico(andar, prof, mesRef, ano, anoAnterior, registrosAndar
   categorias.forEach(c=>contagemMesAtual[c]=0);
   doMesAtualProf.forEach(r=>{ const c = squadCategoria(r); contagemMesAtual[c] = (contagemMesAtual[c]||0)+1; });
   contagemMesAtual['Biópsias'] = doMesAtualProf.filter(r=>r.biopsias).length;
-  contagemMesAtual['Retorno (Consulta Particular)'] = doMesAtualProf.filter(squadEhRetornoConsultaParticular).length;
-  const categoriasComBiopsia = [...categorias, 'Biópsias', 'Retorno (Consulta Particular)'];
+  contagemMesAtual['Retorno'] = doMesAtualProf.filter(squadEhRetorno).length;
+  const categoriasComBiopsia = [...categorias, 'Biópsias', 'Retorno'];
 
 
   const resumoMesAtualHtml = `<div class="grade-kpi" style="margin-bottom:16px;">
@@ -408,7 +414,7 @@ function squadRenderMedico(andar, prof, mesRef, ano, anoAnterior, registrosAndar
     categorias.forEach(c=>contagem[c]=0);
     doMes.forEach(r=>{ const c = squadCategoria(r); contagem[c] = (contagem[c]||0)+1; });
     contagem['Biópsias'] = doMes.filter(r=>r.biopsias).length;
-    contagem['Retorno (Consulta Particular)'] = doMes.filter(squadEhRetornoConsultaParticular).length;
+    contagem['Retorno'] = doMes.filter(squadEhRetorno).length;
     return {mes, ...contagem};
   });
   const tabelaMensalCategoriaHtml = `<div class="tabela-scroll"><table>

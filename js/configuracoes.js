@@ -29,6 +29,45 @@ const DEFINICAO_LISTAS_CONFIG = [
 let listaConfigSelectPronto = false;
 
 
+// Sub-nav de Configurações (Cadastros/Financeiro/Identidade/Direitos) — cada
+// sub-aba só entra na navegação se a permissão de VER correspondente estiver
+// ligada; se a sub-aba ativa deixar de estar visível (ex.: permissão foi
+// desligada), cai pra primeira disponível.
+function prepararSubNavConfiguracoes(visibilidade){
+  const subAbas = [
+    {id:'config-cadastros', rotulo:'Cadastros', pode: visibilidade.cadastros},
+    {id:'config-financeiro', rotulo:'Financeiro', pode: visibilidade.financeiro},
+    {id:'config-identidade', rotulo:'Identidade', pode: visibilidade.identidade},
+    {id:'config-direitos', rotulo:'Direitos e Privilégios', pode: visibilidade.direitos}
+  ];
+  const disponiveis = subAbas.filter(s=>s.pode);
+  const nav = document.getElementById('sub-nav-configuracoes');
+  const jaAtivaAindaDisponivel = disponiveis.some(s=>s.id === estado.subAbaConfiguracoes);
+  if(!jaAtivaAindaDisponivel) estado.subAbaConfiguracoes = disponiveis[0] ? disponiveis[0].id : null;
+
+  nav.innerHTML = disponiveis.map(s=>
+    `<div class="sub-aba${s.id===estado.subAbaConfiguracoes?' ativa':''}" data-sub="${s.id}">${s.rotulo}</div>`
+  ).join('');
+  nav.querySelectorAll('.sub-aba').forEach(el=>{
+    el.addEventListener('click', ()=> trocarSubAbaConfiguracoes(el.dataset.sub));
+  });
+
+  subAbas.forEach(s=>{
+    document.getElementById(s.id).classList.toggle('ativa', s.id === estado.subAbaConfiguracoes);
+  });
+}
+
+function trocarSubAbaConfiguracoes(subId){
+  estado.subAbaConfiguracoes = subId;
+  document.querySelectorAll('#sub-nav-configuracoes .sub-aba').forEach(el=>{
+    el.classList.toggle('ativa', el.dataset.sub===subId);
+  });
+  ['config-cadastros','config-financeiro','config-identidade','config-direitos'].forEach(id=>{
+    document.getElementById(id).classList.toggle('ativa', id===subId);
+  });
+}
+
+
 async function atualizarConfiguracoes(){
   document.getElementById('config-nome-clinica').value = nomeClinicaAtual;
   prepararSelectListaConfig();
@@ -42,44 +81,55 @@ async function atualizarConfiguracoes(){
 
 
   // Direitos e Privilégios nunca é liberado pela própria matriz de permissões —
-  // isso evitaria alguém se autoconceder mais acesso. É sempre exclusivo do gerente.
-  // Os cadastros de andar/procedimento/exame por profissional seguem a mesma regra
-  // (são configuração sensível, só o gerente mexe).
+  // isso evitaria alguém se autoconceder mais acesso. Continua sempre exclusivo
+  // do gerente, sem exceção — essa é a ÚNICA área de Configurações que não
+  // segue as permissões novas de Parâmetros abaixo.
+  //
+  // Todo o resto (Cadastros/Financeiro/Identidade) agora segue as permissões
+  // granulares novas (ver_parametros_cadastros, editar_parametros_cadastros,
+  // etc.) — com fallback automático pra ver_configuracoes/editar_configuracoes
+  // enquanto ninguém mexer explicitamente na permissão nova (ver
+  // temPermissaoParametro em estado.js). Antes disso, essas áreas eram
+  // travadas a "só gerente" no código, sem opção de liberar por permissão —
+  // essa era exatamente a limitação que motivou criar essas permissões novas.
+  const podeVerCadastros = temPermissaoParametro('ver_parametros_cadastros', 'ver_configuracoes');
+  const podeEditarCadastros = temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes');
+  const podeVerFinanceiro = temPermissaoParametro('ver_parametros_financeiros', 'ver_configuracoes');
+  const podeEditarFinanceiro = temPermissaoParametro('editar_parametros_financeiros', 'editar_configuracoes');
+  const podeVerIdentidade = temPermissaoParametro('ver_parametros_aparencia', 'ver_configuracoes');
+  const podeEditarIdentidade = temPermissaoParametro('editar_parametros_aparencia', 'editar_configuracoes');
+
+  prepararSubNavConfiguracoes({
+    cadastros: podeVerCadastros, financeiro: podeVerFinanceiro,
+    identidade: podeVerIdentidade, direitos: estado.papel==='gerente'
+  });
+
   const cartaoPermissoes = document.getElementById('cartao-direitos-privilegios');
-  const cartaoProfAndares = document.getElementById('cartao-profissionais-andares');
-  const cartaoProfProcedimentos = document.getElementById('cartao-profissionais-procedimentos');
-  const cartaoProfExames = document.getElementById('cartao-profissionais-exames');
-  const cartaoAtendentesProf = document.getElementById('cartao-atendentes-profissionais');
-  const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
-  if(estado.papel === 'gerente'){
-    cartaoPermissoes.style.display = '';
-    cartaoProfAndares.style.display = '';
-    cartaoProfProcedimentos.style.display = '';
-    cartaoProfExames.style.display = '';
-    cartaoAtendentesProf.style.display = '';
-    cartaoPlanoContas.style.display = '';
-    await carregarPermissoes();
+  cartaoPermissoes.style.display = estado.papel==='gerente' ? '' : 'none';
+  if(estado.papel==='gerente') await carregarPermissoes();
+
+  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais']
+    .forEach(id => document.getElementById(id).style.display = podeVerCadastros ? '' : 'none');
+  if(podeVerCadastros){
     await carregarProfissionaisAndares();
     await carregarProfissionaisProcedimentos();
     await carregarProfissionaisExames();
     await carregarAtendentesProfissionais();
+  }
+
+  const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
+  cartaoPlanoContas.style.display = podeVerFinanceiro ? '' : 'none';
+  if(podeVerFinanceiro){
     await financeiroCarregarContas();
-    montarArvoreContas('financeiro-arvore-config', {comValores:false, podeEditar:true});
-  } else {
-    cartaoPermissoes.style.display = 'none';
-    cartaoProfAndares.style.display = 'none';
-    cartaoProfProcedimentos.style.display = 'none';
-    cartaoProfExames.style.display = 'none';
-    cartaoAtendentesProf.style.display = 'none';
-    cartaoPlanoContas.style.display = 'none';
+    montarArvoreContas('financeiro-arvore-config', {comValores:false, podeEditar:podeEditarFinanceiro});
   }
 
 
-  const podeEditarConfig = temPermissao('editar_configuracoes');
+  const podeEditarConfig = podeEditarIdentidade;
   document.getElementById('botao-salvar-config').style.display = podeEditarConfig ? 'inline-flex' : 'none';
   document.getElementById('config-nome-clinica').disabled = !podeEditarConfig;
-  document.getElementById('botao-adicionar-item-lista').style.display = podeEditarConfig ? 'inline-flex' : 'none';
-  document.getElementById('config-novo-item-lista').disabled = !podeEditarConfig;
+  document.getElementById('botao-adicionar-item-lista').style.display = podeEditarCadastros ? 'inline-flex' : 'none';
+  document.getElementById('config-novo-item-lista').disabled = !podeEditarCadastros;
 }
 
 
@@ -127,7 +177,8 @@ create policy acesso_total_anon on profissionais_andares for all using (true) wi
     acao: 'definirProfissionalAndar',
     nomeCampoLinha: 'prof',
     nomeCampoAcao: 'andar',
-    classeCheckbox: 'chk-prof-andar'
+    classeCheckbox: 'chk-prof-andar',
+    podeEditar: temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes')
   });
 }
 
@@ -166,7 +217,8 @@ create policy acesso_total_anon on profissionais_procedimentos for all using (tr
     acao: 'definirProfissionalProcedimento',
     nomeCampoLinha: 'prof',
     nomeCampoAcao: 'procedimento',
-    classeCheckbox: 'chk-prof-procedimento'
+    classeCheckbox: 'chk-prof-procedimento',
+    podeEditar: temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes')
   });
 }
 
@@ -205,7 +257,8 @@ create policy acesso_total_anon on profissionais_exames for all using (true) wit
     acao: 'definirProfissionalExame',
     nomeCampoLinha: 'prof',
     nomeCampoAcao: 'exame',
-    classeCheckbox: 'chk-prof-exame'
+    classeCheckbox: 'chk-prof-exame',
+    podeEditar: temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes')
   });
 }
 
@@ -255,7 +308,8 @@ create policy acesso_total_anon on atendentes_profissionais for all using (true)
       if(!estado.profissionaisAtendentes[valor]) estado.profissionaisAtendentes[valor] = [];
       estado.profissionaisAtendentes[valor] = estado.profissionaisAtendentes[valor].filter(v=>v!==linha);
       if(marcado) estado.profissionaisAtendentes[valor].push(linha);
-    }
+    },
+    podeEditar: temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes')
   });
 }
 
@@ -265,18 +319,21 @@ create policy acesso_total_anon on atendentes_profissionais for all using (true)
 // Profissional×Procedimento, Profissional×Exame e Atendente×Profissional,
 // já que as quatro seguem exatamente a mesma mecânica (só muda o que é
 // linha/coluna).
-function renderizarMatrizProfissionalCampo({tabela, porLinha, rotuloLinha, linhas, colunas, acao, nomeCampoLinha, nomeCampoAcao, classeCheckbox, aoAlterar}){
+function renderizarMatrizProfissionalCampo({tabela, porLinha, rotuloLinha, linhas, colunas, acao, nomeCampoLinha, nomeCampoAcao, classeCheckbox, aoAlterar, podeEditar=true}){
   if(linhas.length===0 || colunas.length===0){
     tabela.innerHTML = '<tr><td class="vazio">Cadastre os itens correspondentes em "Listas do sistema" primeiro.</td></tr>';
     return;
   }
+  const desabilitado = podeEditar ? '' : 'disabled';
   tabela.innerHTML = `
     <thead><tr><th>${rotuloLinha}</th>${colunas.map(o=>`<th style="text-align:center;">${o}</th>`).join('')}</tr></thead>
     <tbody>${linhas.map(linha=>`
       <tr data-linha="${linha}">
         <td>${linha}</td>
-        ${colunas.map(o=>`<td style="text-align:center;"><input type="checkbox" class="${classeCheckbox}" data-valor="${o}" ${(porLinha[linha]||[]).includes(o)?'checked':''}></td>`).join('')}
+        ${colunas.map(o=>`<td style="text-align:center;"><input type="checkbox" class="${classeCheckbox}" data-valor="${o}" ${(porLinha[linha]||[]).includes(o)?'checked':''} ${desabilitado}></td>`).join('')}
       </tr>`).join('')}</tbody>`;
+
+  if(!podeEditar) return; // só visualização — não religa os listeners de salvar
 
   tabela.querySelectorAll(`.${classeCheckbox}`).forEach(chk=>{
     chk.addEventListener('change', async ()=>{
@@ -405,7 +462,7 @@ function renderizarItensListaConfig(){
   const chave = document.getElementById('config-lista-selecionada').value;
   const itens = estado.listas[chave]||[];
   const container = document.getElementById('config-itens-lista');
-  const podeEditarConfig = temPermissao('editar_configuracoes');
+  const podeEditarConfig = temPermissaoParametro('editar_parametros_cadastros', 'editar_configuracoes');
   if(itens.length===0){
     container.innerHTML = '<p class="vazio" style="padding:10px 0;">Nenhum item nessa lista ainda.</p>';
     return;

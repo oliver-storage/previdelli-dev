@@ -16,13 +16,14 @@
       branco, com um aviso — não inventamos nada.
 
    Simplificação assumida (documentada aqui, não escondida): "Previsto ×
-   Realizado" por andar usa a SOMA de meta_qtd/meta_valor dos profissionais
-   cadastrados NAQUELE andar (só entram profissionais ligados a um único
-   andar — ver `estado.profissionaisAndares` — para não contar duas vezes
-   quem atende nos dois). O ProdClin não guarda meta por categoria de
-   procedimento (consulta/exame/cirurgia em separado), só por profissional
-   e mês — então essa quebra fina, que existia no PDF de referência, não
-   está disponível aqui.
+   Realizado" por andar usa TURNOS UTILIZADOS × VALOR MÍNIMO POR
+   PROFISSIONAL (aba Metas) dos profissionais cadastrados NAQUELE andar
+   (só entram profissionais ligados a um único andar — ver
+   `estado.profissionaisAndares` — para não contar duas vezes quem atende
+   nos dois). O ProdClin não guarda meta por categoria de procedimento
+   (consulta/exame/cirurgia em separado), só por profissional e mês —
+   então essa quebra fina, que existia no PDF de referência, não está
+   disponível aqui.
 ===================================================================== */
 let apresentacaoSelectsProntos = false;
 let apresentacaoSlides = [];
@@ -289,7 +290,7 @@ function apresentacaoConstruirSlides(d){
     const info = porProcedimentoGeral[proc];
     add('', `
       <h2>${proc} — Comparativo Histórico</h2>
-      <p class="apresentacao-legenda">Volume mensal — ${d.ano} × ${d.anoAnterior}</p>
+      <p class="apresentacao-legenda">Faturamento mensal — ${d.ano} × ${d.anoAnterior}</p>
       <div class="grade-kpi" style="margin-bottom:14px;">
         <div class="kpi"><div class="rotulo">Qtd. no mês</div><div class="valor">${info.quantidade}</div></div>
         <div class="kpi"><div class="rotulo">Valor no mês</div><div class="valor teal">${formatarMoeda(info.valor)}</div></div>
@@ -327,15 +328,19 @@ function apresentacaoConstruirSlides(d){
   // ---------- 7. TÉRREO — Previsto × Realizado ----------
   const profsTerreo = apresentacaoProfissionaisDeUmAndarSo('TÉRREO');
   const metasTerreo = d.metas.filter(m=>profsTerreo.includes(m.prof));
-  const previstoQtdTerreo = arredondar1(metasTerreo.reduce((s,m)=>s+(Number(m.meta_qtd)||0),0));
-  const previstoValorTerreo = metasTerreo.reduce((s,m)=>s+(Number(m.meta_valor)||0),0);
+  let turnosUtilizadosTerreo = 0;
+  const previstoValorTerreo = metasTerreo.reduce((s,m)=>{
+    const turnosMeta = Number(m.turnos_utilizados)||0;
+    turnosUtilizadosTerreo += turnosMeta;
+    return s + turnosMeta * (Number(m.valor_minimo_turno)||0);
+  }, 0);
   add('', `
     <h2>Térreo — Atendimentos: Previsto × Realizado</h2>
-    <p class="apresentacao-legenda">Previsto = soma das metas dos profissionais só do Térreo cadastradas em Metas</p>
+    <p class="apresentacao-legenda">Previsto = turnos utilizados (aba Metas) × valor mínimo por profissional, só do Térreo</p>
     <div class="grade-kpi" style="margin-bottom:0;">
-      <div class="kpi"><div class="rotulo">Atendimentos previstos</div><div class="valor">${previstoQtdTerreo||'—'}</div></div>
+      <div class="kpi"><div class="rotulo">Turnos utilizados</div><div class="valor">${turnosUtilizadosTerreo||'—'}</div></div>
       <div class="kpi"><div class="rotulo">Atendimentos realizados</div><div class="valor teal">${registrosTerreo.length}</div></div>
-      <div class="kpi"><div class="rotulo">Valor previsto</div><div class="valor">${previstoValorTerreo?formatarMoeda(previstoValorTerreo):'—'}</div></div>
+      <div class="kpi"><div class="rotulo">Valor previsto (meta)</div><div class="valor">${previstoValorTerreo?formatarMoeda(previstoValorTerreo):'—'}</div></div>
       <div class="kpi"><div class="rotulo">Valor realizado</div><div class="valor teal">${formatarMoeda(totalTerreo)}</div></div>
     </div>
     ${metasTerreo.length===0?'<p class="vazio" style="margin-top:20px;">Nenhum profissional cadastrado como exclusivo do Térreo em Metas para este mês.</p>':''}`);
@@ -403,27 +408,29 @@ function apresentacaoConstruirSlides(d){
   });
   const topProfCopart = Object.keys(porProfCopart).sort((a,b)=>porProfCopart[b].quantidade-porProfCopart[a].quantidade).slice(0,10);
   add('', `
-    <h2>Coparticipados — Top 10 Profissionais por Atendimento</h2>
+    <h2>Coparticipados — Top 10 Profissionais por Faturamento</h2>
     <p class="apresentacao-legenda">${d.mes} de ${d.ano}</p>
     <div id="apr-grafico-copart-top10" class="mini-grafico" style="min-height:300px;"></div>`);
 
-  // ---------- 13. COPARTICIPADOS — Ocupação de turnos ----------
+  // ---------- 13. COPARTICIPADOS — Turnos e Metas Financeiras ----------
   const profsCopart = apresentacaoProfissionaisDeUmAndarSo('COPARTICIPADOS');
   const metasCopart = d.metas.filter(m=>profsCopart.includes(m.prof));
-  const usoCopart = {};
-  registrosCoparticipados.forEach(r=>{ usoCopart[r.prof]=usoCopart[r.prof]||new Set(); usoCopart[r.prof].add(r.data+'_'+r.turno); });
+  const valorCopart = {};
+  registrosCoparticipados.forEach(r=>{ valorCopart[r.prof]=(valorCopart[r.prof]||0)+(Number(r.valor)||0); });
   const linhasTurnoCopart = metasCopart.map(m=>{
-    const usados = usoCopart[m.prof]?usoCopart[m.prof].size:0;
-    const disp = Number(m.turnos_disponibilizados)||0;
-    return {prof:m.prof, disp, usados, ociosos:Math.max(0,disp-usados), pct: disp?Math.round(usados/disp*100):0};
-  }).sort((a,b)=>b.disp-a.disp);
+    const turnosMeta = Number(m.turnos_utilizados)||0;
+    const valorMeta = turnosMeta * (Number(m.valor_minimo_turno)||0);
+    const realizado = valorCopart[m.prof]||0;
+    const pct = valorMeta ? Math.round(realizado/valorMeta*100) : null;
+    return {prof:m.prof, usados:turnosMeta, valorMeta, realizado, pct};
+  }).sort((a,b)=>b.usados-a.usados);
   add('', `
-    <h2>Coparticipados — Ocupação de Turnos</h2>
+    <h2>Coparticipados — Turnos e Metas Financeiras</h2>
     <p class="apresentacao-legenda">${d.mes} de ${d.ano} • profissionais cadastrados só nesse andar</p>
     <div class="tabela-scroll"><table>
-      <thead><tr><th>Profissional</th><th>Disponibilizados</th><th>Usados</th><th>Ociosos</th><th>% eficiência</th></tr></thead>
+      <thead><tr><th>Profissional</th><th>Turnos utilizados</th><th>Valor da meta</th><th>Realizado</th><th>% atingido</th></tr></thead>
       <tbody>${linhasTurnoCopart.length?linhasTurnoCopart.map(l=>`
-        <tr><td>${l.prof}</td><td>${l.disp}</td><td>${l.usados}</td><td>${l.ociosos}</td><td>${l.pct}%</td></tr>`).join('')
+        <tr><td>${l.prof}</td><td>${l.usados}</td><td class="mono">${l.valorMeta?formatarMoeda(l.valorMeta):'—'}</td><td class="mono">${formatarMoeda(l.realizado)}</td><td>${l.pct!==null?l.pct+'%':'—'}</td></tr>`).join('')
         :'<tr><td class="vazio">Nenhum profissional exclusivo dos Coparticipados com meta cadastrada.</td></tr>'}
       </tbody>
     </table></div>`);
@@ -455,7 +462,7 @@ function apresentacaoConstruirSlides(d){
   // ---------- 14. COPARTICIPADOS — Ultrassom histórico ----------
   add('', `
     <h2>Coparticipados — Ultrassom (Comparativo Histórico)</h2>
-    <p class="apresentacao-legenda">Volume mensal de USG — ${d.ano} × ${d.anoAnterior}</p>
+    <p class="apresentacao-legenda">Faturamento mensal de USG — ${d.ano} × ${d.anoAnterior}</p>
     <div id="apr-grafico-copart-usg" class="mini-grafico" style="min-height:280px;"></div>`);
 
   // ---------- 15. DIVISOR FINANCEIRO ----------
@@ -541,13 +548,13 @@ function apresentacaoDesenharGraficos(d){
     miniGraficoRosca('apr-grafico-terreo-convenio', chavesConv, chavesConv.map(c=>porConvenioTerreo[c].valor));
   }
 
-  // 8. Térreo — exames
+  // 8. Térreo — exames (em R$, não em quantidade)
   const examesTerreo = registrosTerreo.filter(r=>r.exames);
   const porExameTerreo = {};
-  examesTerreo.forEach(r=>{ porExameTerreo[r.exames]=(porExameTerreo[r.exames]||0)+1; });
+  examesTerreo.forEach(r=>{ porExameTerreo[r.exames]=(porExameTerreo[r.exames]||0)+(Number(r.valor)||0); });
   const chavesExame = Object.keys(porExameTerreo).sort((a,b)=>porExameTerreo[b]-porExameTerreo[a]).slice(0,8);
   if(document.getElementById('apr-grafico-terreo-exames')){
-    miniGraficoBarras('apr-grafico-terreo-exames', chavesExame, chavesExame.map(e=>porExameTerreo[e]), '#146B5D');
+    miniGraficoBarras('apr-grafico-terreo-exames', chavesExame, chavesExame.map(e=>Math.round(porExameTerreo[e])), '#146B5D');
   }
 
   // 9. Térreo — ticket médio comparativo
@@ -571,13 +578,13 @@ function apresentacaoDesenharGraficos(d){
     {nome:String(d.anoAnterior), dados: mesesAte.map(m=>Math.round(porMesCopartAnoAnt[m].valor)), cor:'#9FD6C8', tracejado:true}
   ]);
 
-  // 12. Coparticipados — top 10
+  // 12. Coparticipados — top 10 (em R$, não em quantidade de atendimento)
   const registrosCopart = apresentacaoFiltrarAndar(d.registrosMes, 'COPARTICIPADOS');
   const porProfCopart = {};
-  registrosCopart.forEach(r=>{ porProfCopart[r.prof]=(porProfCopart[r.prof]||0)+1; });
+  registrosCopart.forEach(r=>{ porProfCopart[r.prof]=(porProfCopart[r.prof]||0)+(Number(r.valor)||0); });
   const topProf = Object.keys(porProfCopart).sort((a,b)=>porProfCopart[b]-porProfCopart[a]).slice(0,10);
   if(document.getElementById('apr-grafico-copart-top10')){
-    miniGraficoBarras('apr-grafico-copart-top10', topProf, topProf.map(p=>porProfCopart[p]), '#0E5548');
+    miniGraficoBarras('apr-grafico-copart-top10', topProf, topProf.map(p=>Math.round(porProfCopart[p])), '#0E5548');
   }
 
   // 14. Coparticipados — USG histórico
@@ -586,8 +593,8 @@ function apresentacaoDesenharGraficos(d){
   const porMesUsgAno = apresentacaoAgruparPorMes(usgAno);
   const porMesUsgAnoAnt = apresentacaoAgruparPorMes(usgAnoAnt);
   miniGraficoLinhas('apr-grafico-copart-usg', mesesAte, [
-    {nome:String(d.ano), dados: mesesAte.map(m=>porMesUsgAno[m].quantidade), cor:'#146B5D'},
-    {nome:String(d.anoAnterior), dados: mesesAte.map(m=>porMesUsgAnoAnt[m].quantidade), cor:'#9FD6C8', tracejado:true}
+    {nome:String(d.ano), dados: mesesAte.map(m=>Math.round(porMesUsgAno[m].valor)), cor:'#146B5D'},
+    {nome:String(d.anoAnterior), dados: mesesAte.map(m=>Math.round(porMesUsgAnoAnt[m].valor)), cor:'#9FD6C8', tracejado:true}
   ]);
 
   // 4c. Um gráfico por procedimento (comparativo histórico, clínica inteira)
@@ -608,8 +615,8 @@ function apresentacaoDesenharGraficos(d){
     const porMesProcAno = apresentacaoAgruparPorMes(registrosProcAno);
     const porMesProcAnoAnt = apresentacaoAgruparPorMes(registrosProcAnoAnt);
     miniGraficoLinhas(containerId, mesesAte, [
-      {nome:String(d.ano), dados: mesesAte.map(m=>porMesProcAno[m].quantidade), cor:'#146B5D'},
-      {nome:String(d.anoAnterior), dados: mesesAte.map(m=>porMesProcAnoAnt[m].quantidade), cor:'#9FD6C8', tracejado:true}
+      {nome:String(d.ano), dados: mesesAte.map(m=>Math.round(porMesProcAno[m].valor)), cor:'#146B5D'},
+      {nome:String(d.anoAnterior), dados: mesesAte.map(m=>Math.round(porMesProcAnoAnt[m].valor)), cor:'#9FD6C8', tracejado:true}
     ]);
   });
 

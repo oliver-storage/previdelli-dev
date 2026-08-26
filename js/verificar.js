@@ -233,20 +233,50 @@ async function atualizarEditar(){
   });
   const podeVerFinanceiro = temPermissao('ver_financeiro_verificar');
   const cartaoResumoFinanceiro = document.getElementById('cartao-resumo-financeiro-editar');
+  const cartaoPorConvenio = document.getElementById('cartao-resumo-por-convenio');
+  // Quantidade de pacientes — DISTINTOS (um paciente pode ter mais de um
+  // lançamento no período), respeitando todos os filtros já aplicados.
+  // Único cartão da fileira em cinza claro, pra se diferenciar dos
+  // valores financeiros (que ficam em teal/verde).
+  const pacientesDistintos = new Set(
+    registros.map(r => String(r.paciente||'').trim().toUpperCase()).filter(Boolean)
+  ).size;
+  const cardPacientes = `<div class="kpi"><div class="rotulo">Quantidade de pacientes</div><div class="valor" id="resumo-fp-pacientes" style="color:var(--ink-400);">${pacientesDistintos}</div></div>`;
   if(!podeVerFinanceiro){
-    if(cartaoResumoFinanceiro) cartaoResumoFinanceiro.style.display = 'none';
-    document.getElementById('resumo-financeiro-editar').innerHTML = '';
+    if(cartaoResumoFinanceiro) cartaoResumoFinanceiro.style.display = '';
+    if(cartaoPorConvenio) cartaoPorConvenio.style.display = 'none';
+    document.getElementById('resumo-financeiro-editar').innerHTML = cardPacientes;
   } else {
     if(cartaoResumoFinanceiro) cartaoResumoFinanceiro.style.display = '';
+    if(cartaoPorConvenio) cartaoPorConvenio.style.display = '';
     const rotuloConvenios = estado.conveniosSelecionados.length===1 ? ` (${estado.conveniosSelecionados[0]})`
       : estado.conveniosSelecionados.length>1 ? ` (${estado.conveniosSelecionados.length} convênios)` : '';
-    document.getElementById('resumo-financeiro-editar').innerHTML = `
+    document.getElementById('resumo-financeiro-editar').innerHTML = cardPacientes + `
       <div class="kpi"><div class="rotulo">Convênio${rotuloConvenios}</div><div class="valor" id="resumo-fp-convenio">${formatarMoeda(porFormaPagamento['CONVÊNIO'])}</div></div>
       <div class="kpi"><div class="rotulo">Pix</div><div class="valor" id="resumo-fp-pix">${formatarMoeda(porFormaPagamento['PIX'])}</div></div>
       <div class="kpi"><div class="rotulo">Espécie</div><div class="valor" id="resumo-fp-especie">${formatarMoeda(porFormaPagamento['ESPÉCIE'])}</div></div>
       <div class="kpi"><div class="rotulo">Cartão</div><div class="valor" id="resumo-fp-cartao">${formatarMoeda(porFormaPagamento['CARTÃO'])}</div></div>
       <div class="kpi"><div class="rotulo">Total${estado.conveniosSelecionados.length?' filtrado':''}</div><div class="valor teal" id="resumo-fp-total">${formatarMoeda(totalGeral)}</div></div>
     `;
+
+    // Por convênio — um card por convênio (PARTICULAR, UNIMED, etc.), com
+    // valor em R$ na linha de cima e quantidade de atendimentos embaixo,
+    // dentro do MESMO card. Só entra convênio que apareceu no período
+    // filtrado (não lista todo o cadastro, só o que tem dado de verdade).
+    const porConvenioReal = {};
+    registros.forEach(r=>{
+      const conv = r.convenio || 'PARTICULAR';
+      if(!porConvenioReal[conv]) porConvenioReal[conv] = {valor:0, quantidade:0};
+      porConvenioReal[conv].valor += Number(r.valor)||0;
+      porConvenioReal[conv].quantidade += 1;
+    });
+    const chavesConvenio = Object.keys(porConvenioReal).sort((a,b)=>porConvenioReal[b].valor-porConvenioReal[a].valor);
+    document.getElementById('resumo-por-convenio-editar').innerHTML = chavesConvenio.length ? chavesConvenio.map(c=>`
+      <div class="kpi">
+        <div class="rotulo">${c}</div>
+        <div class="valor">${formatarMoeda(porConvenioReal[c].valor)}</div>
+        <div class="valor-secundario">${porConvenioReal[c].quantidade} atendimento${porConvenioReal[c].quantidade===1?'':'s'}</div>
+      </div>`).join('') : '<p class="vazio">Nenhum lançamento no período.</p>';
   }
 
 

@@ -254,9 +254,8 @@ async function supabaseApi(acao, dados) {
         prof: dados.prof,
         mes: nomeMesParaNumero(dados.mes),
         ano: Number(dados.ano),
-        turnos_disponibilizados: Number(dados.turnos_disponibilizados)||0,
-        meta_valor: Number(dados.meta_valor)||0,
-        meta_qtd: Number(dados.meta_qtd)||0
+        turnos_utilizados: Number(dados.turnos_utilizados)||0,
+        valor_minimo_turno: Number(dados.valor_minimo_turno)||0
       };
       const { error } = await supabaseClient.from('metas').upsert(registro, {onConflict:'prof,mes,ano'});
       return error ? {ok:false, erro:error.message} : {ok:true};
@@ -615,7 +614,7 @@ async function supabaseApi(acao, dados) {
       const comparativo = Object.keys(porProfissional).map(prof=>{
         const m = metaPorProf[prof]||{};
         return {prof, quantidade:porProfissional[prof].quantidade, valorRealizado:porProfissional[prof].valor,
-                metaValor:Number(m.meta_valor)||0, turnosDisponibilizados:Number(m.turnos_disponibilizados)||0};
+                metaValor: (Number(m.valor_minimo_turno)||0) * (Number(m.turnos_utilizados)||0)};
       });
       return {ok:true, totalAtendimentos:registros.length, totalValor, porProfissional, porConvenio, porAndar, comparativo};
     }
@@ -889,7 +888,7 @@ function mockApi(acao, dados) {
       const comparativo = Object.keys(porProfissional).map(prof=>{
         const m = metaPorProf[prof]||{};
         return {prof, quantidade:porProfissional[prof].quantidade, valorRealizado:porProfissional[prof].valor,
-                metaValor:Number(m.meta_valor)||0, turnosDisponibilizados:Number(m.turnos_disponibilizados)||0};
+                metaValor: (Number(m.valor_minimo_turno)||0) * (Number(m.turnos_utilizados)||0)};
       });
       return {ok:true, totalAtendimentos:registros.length, totalValor, porProfissional, porConvenio, porAndar, comparativo};
     }

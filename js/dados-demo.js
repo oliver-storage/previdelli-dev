@@ -159,10 +159,10 @@ const demo = {
     {id:'d14',prof:'DRA AMANDA USG',data:'2026-05-12',turno:'M',paciente:'CAMILA FERREIRA',protocolo:'',procedimento:'USG',exames:'MAMAS',biopsias:'',convenio:'',valor:180,forma_pagamento:'ESPÉCIE',atendente:'SOCORRO',andar:'TÉRREO',mes:'Maio',ano:2026}
   ],
   metas:[
-    {prof:'ANGELINA', mes:'Maio', ano:2026, turnos_disponibilizados:6, meta_valor:1764, meta_qtd:55},
-    {prof:'LISIENE', mes:'Maio', ano:2026, turnos_disponibilizados:25, meta_valor:7350, meta_qtd:170},
-    {prof:'RENATA', mes:'Maio', ano:2026, turnos_disponibilizados:36, meta_valor:20412, meta_qtd:176},
-    {prof:'DR MARCELO USG', mes:'Maio', ano:2026, turnos_disponibilizados:16, meta_valor:15000, meta_qtd:158}
+    {prof:'ANGELINA', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},
+    {prof:'LISIENE', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},
+    {prof:'RENATA', mes:'Maio', ano:2026, turnos_utilizados:1, valor_minimo_turno:567},
+    {prof:'DR MARCELO USG', mes:'Maio', ano:2026, turnos_utilizados:1, valor_minimo_turno:938}
   ],
   notas:{}
 };

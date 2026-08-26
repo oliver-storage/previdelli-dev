@@ -12,6 +12,11 @@ const formatarMoeda = v => (Number(v)||0).toLocaleString('pt-BR',{style:'currenc
 // arredondar pra "1%" (que escondia valores pequenos como 0% quando na
 // verdade era algo como 0,02%).
 const formatarPercentual = v => (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+// Número genérico pra rótulo de gráfico — NO MÁXIMO 2 casas decimais (não
+// força: 101 continua "101", só corta o excesso tipo 204936.23999999996
+// virando "204.936,24"). Usado em todo lugar que mostra número cru num
+// gráfico (linha, barra, barra empilhada).
+const formatarNumeroGrafico = v => (Number(v)||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const arredondar1 = v => Math.round((Number(v)||0)*10)/10;
 
 
@@ -86,8 +91,8 @@ function miniGraficoBarras(idContainer, labels, valores, cor='#5C2350'){
     const alturaBarra = (v/maxValor)*areaH;
     const x = margemEsq + i*passo + (passo-larguraBarra)/2;
     const y = margemTopo + areaH - alturaBarra;
-    barras += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${larguraBarra.toFixed(1)}" height="${Math.max(1,alturaBarra).toFixed(1)}" rx="4" fill="${cor}"><title>${lab}: ${v}</title></rect>`;
-    barras += `<text class="rotulo-valor" x="${(x+larguraBarra/2).toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle">${v}</text>`;
+    barras += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${larguraBarra.toFixed(1)}" height="${Math.max(1,alturaBarra).toFixed(1)}" rx="4" fill="${cor}"><title>${lab}: ${formatarNumeroGrafico(v)}</title></rect>`;
+    barras += `<text class="rotulo-valor" x="${(x+larguraBarra/2).toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle">${formatarNumeroGrafico(v)}</text>`;
     rotulosX += `<text class="rotulo-eixo" x="${(x+larguraBarra/2).toFixed(1)}" y="${H-margemBaixo+16}" text-anchor="middle" transform="rotate(-35 ${(x+larguraBarra/2).toFixed(1)} ${H-margemBaixo+16})">${truncarRotulo(lab)}</text>`;
   });
 
@@ -126,10 +131,10 @@ function miniGraficoBarrasEmpilhadas(idContainer, labels, series){
       const v = serie.dados[i]||0;
       const altura = (v/maxValor)*areaH;
       yAtual -= altura;
-      barras += `<rect x="${x.toFixed(1)}" y="${yAtual.toFixed(1)}" width="${larguraBarra.toFixed(1)}" height="${Math.max(0,altura).toFixed(1)}" fill="${serie.cor}"><title>${serie.nome} — ${lab}: ${v}</title></rect>`;
+      barras += `<rect x="${x.toFixed(1)}" y="${yAtual.toFixed(1)}" width="${larguraBarra.toFixed(1)}" height="${Math.max(0,altura).toFixed(1)}" fill="${serie.cor}"><title>${serie.nome} — ${lab}: ${formatarNumeroGrafico(v)}</title></rect>`;
     });
     // Total da barra (soma de todas as séries daquele rótulo), em cima dela.
-    rotulosTotal += `<text class="rotulo-valor" x="${(x+larguraBarra/2).toFixed(1)}" y="${(yAtual-6).toFixed(1)}" text-anchor="middle">${totais[i]}</text>`;
+    rotulosTotal += `<text class="rotulo-valor" x="${(x+larguraBarra/2).toFixed(1)}" y="${(yAtual-6).toFixed(1)}" text-anchor="middle">${formatarNumeroGrafico(totais[i])}</text>`;
     rotulosX += `<text class="rotulo-eixo" x="${(x+larguraBarra/2).toFixed(1)}" y="${H-margemBaixo+16}" text-anchor="middle" transform="rotate(-35 ${(x+larguraBarra/2).toFixed(1)} ${H-margemBaixo+16})">${truncarRotulo(lab)}</text>`;
   });
 
@@ -168,6 +173,17 @@ function miniGraficoRosca(idContainer, labels, valores, cores=PALETA_GRAFICOS){
     const x2i = cx + rInterno*Math.cos(rad(anguloAtual)), y2i = cy + rInterno*Math.sin(rad(anguloAtual));
     const cor = cores[i%cores.length];
     fatias += `<path d="M ${x1e.toFixed(2)} ${y1e.toFixed(2)} A ${rExterno} ${rExterno} 0 ${grandeArco} 1 ${x2e.toFixed(2)} ${y2e.toFixed(2)} L ${x1i.toFixed(2)} ${y1i.toFixed(2)} A ${rInterno} ${rInterno} 0 ${grandeArco} 0 ${x2i.toFixed(2)} ${y2i.toFixed(2)} Z" fill="${cor}"><title>${lab}: ${formatarMoeda(valor)} (${formatarPercentual(valor/total*100)})</title></path>`;
+    // Rótulo na própria fatia — só quando ela é grande o bastante pra
+    // caber texto legível (fatias bem pequenas ficam só na legenda,
+    // escrever nelas ia virar uma bagunça ilegível).
+    const pctFatia = valor/total*100;
+    if(pctFatia >= 5){
+      const anguloMeio = anguloAtual + angulo/2;
+      const rMeio = (rExterno+rInterno)/2;
+      const xTexto = cx + rMeio*Math.cos(rad(anguloMeio));
+      const yTexto = cy + rMeio*Math.sin(rad(anguloMeio));
+      fatias += `<text x="${xTexto.toFixed(1)}" y="${yTexto.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="#00000055" stroke-width="2" paint-order="stroke" style="font-weight:700;font-size:11px;font-family:'IBM Plex Mono',monospace;">${formatarPercentual(pctFatia)}</text>`;
+    }
     anguloAtual = anguloFim;
   });
 
@@ -218,12 +234,12 @@ function miniGraficoLinhas(idContainer, labels, series){
       const x = margemEsq + i*passo;
       const y = margemTopo + areaH - (v/maxValor)*areaH;
       const yTexto = idxSerie===0 ? y-9 : y+16;
-      return `<text class="rotulo-valor" x="${x.toFixed(1)}" y="${yTexto.toFixed(1)}" text-anchor="middle" fill="${serie.cor}">${v}</text>`;
+      return `<text class="rotulo-valor" x="${x.toFixed(1)}" y="${yTexto.toFixed(1)}" text-anchor="middle" fill="${serie.cor}">${formatarNumeroGrafico(v)}</text>`;
     }).join('');
     const circulos = serie.dados.map((v,i)=>{
       const x = margemEsq + i*passo;
       const y = margemTopo + areaH - (v/maxValor)*areaH;
-      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${serie.cor}"><title>${serie.nome} — ${labels[i]}: ${v}</title></circle>`;
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${serie.cor}"><title>${serie.nome} — ${labels[i]}: ${formatarNumeroGrafico(v)}</title></circle>`;
     }).join('');
     linhas += `<polyline points="${pontos}" fill="none" stroke="${serie.cor}" stroke-width="2.5" ${serie.tracejado?'stroke-dasharray="6,5"':''}/>${circulos}${rotulosPonto}`;
   });

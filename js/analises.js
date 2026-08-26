@@ -60,34 +60,30 @@ function atualizarEvolucaoAno(){
     const metasDoMes = metas.filter(m=>m.mes===mes);
     const qtdeRealizada = doMes.length;
     const valorRealizado = doMes.reduce((s,r)=>s+(Number(r.valor)||0),0);
-    const turnosDisp = metasDoMes.reduce((s,m)=>s+(Number(m.turnos_disponibilizados)||0),0);
-    const qtdePrevista = arredondar1(metasDoMes.reduce((s,m)=>s+(Number(m.meta_qtd)||0),0));
-    const valorPrevisto = metasDoMes.reduce((s,m)=>s+(Number(m.meta_valor)||0),0);
     const turnosUsados = new Set(doMes.map(r=>r.data+'_'+r.turno)).size;
+    // Valor previsto = Turnos Utilizados (salvo em Metas, ajustável à mão)
+    // × Vr mínimo por profissional — soma de todos os profissionais
+    // considerados.
+    const valorPrevisto = metasDoMes.reduce((s,m)=>{
+      return s + (Number(m.turnos_utilizados)||0) * (Number(m.valor_minimo_turno)||0);
+    }, 0);
     const mediaPeriodo = turnosUsados ? valorRealizado/turnosUsados : 0;
-    const pctEficiencia = turnosDisp ? Math.round((turnosUsados/turnosDisp)*100) : null;
     const pctMetaValor = valorPrevisto ? Math.round((valorRealizado/valorPrevisto)*100) : null;
-    const pctMetaQtde = qtdePrevista ? Math.round((qtdeRealizada/qtdePrevista)*100) : null;
-    return {mes, turnosDisp, turnosUsados, qtdePrevista, qtdeRealizada, valorPrevisto, valorRealizado, mediaPeriodo, pctEficiencia, pctMetaValor, pctMetaQtde};
+    return {mes, turnosUsados, qtdeRealizada, valorPrevisto, valorRealizado, mediaPeriodo, pctMetaValor};
   });
 
 
   const tabela = document.getElementById('tabela-evolucao-ano');
   tabela.innerHTML = `
     <thead><tr>
-      <th>Mês</th><th>Turnos disp.</th><th>Turnos usados</th><th>% eficiência</th>
-      <th>Qtde prevista</th><th>Qtde realizada</th><th>% meta qtde</th>
-      <th>Valor previsto</th><th>Valor realizado</th><th>% meta valor</th><th>Média período</th>
+      <th>Mês</th><th>Turnos utilizados</th><th>Atendimentos</th>
+      <th>Valor da meta</th><th>Valor realizado</th><th>% meta valor</th><th>Média período</th>
     </tr></thead>
     <tbody>${linhas.map(l=>`
       <tr>
         <td>${l.mes}</td>
-        <td>${l.turnosDisp||'—'}</td>
         <td>${l.turnosUsados||'—'}</td>
-        <td>${l.pctEficiencia!==null? l.pctEficiencia+'%' : '—'}</td>
-        <td>${l.qtdePrevista||'—'}</td>
         <td>${l.qtdeRealizada}</td>
-        <td>${l.pctMetaQtde!==null? l.pctMetaQtde+'%' : '—'}</td>
         <td class="mono">${l.valorPrevisto?formatarMoeda(l.valorPrevisto):'—'}</td>
         <td class="mono">${formatarMoeda(l.valorRealizado)}</td>
         <td>${l.pctMetaValor!==null? l.pctMetaValor+'%' : '—'}</td>
@@ -95,12 +91,8 @@ function atualizarEvolucaoAno(){
       </tr>`).join('')}
     <tr class="linha-total">
       <td>Total</td>
-      <td>${arredondar1(linhas.reduce((s,l)=>s+l.turnosDisp,0))}</td>
       <td>${arredondar1(linhas.reduce((s,l)=>s+l.turnosUsados,0))}</td>
-      <td></td>
-      <td>${arredondar1(linhas.reduce((s,l)=>s+l.qtdePrevista,0))}</td>
       <td>${arredondar1(linhas.reduce((s,l)=>s+l.qtdeRealizada,0))}</td>
-      <td></td>
       <td class="mono">${formatarMoeda(linhas.reduce((s,l)=>s+l.valorPrevisto,0))}</td>
       <td class="mono">${formatarMoeda(linhas.reduce((s,l)=>s+l.valorRealizado,0))}</td>
       <td></td>
@@ -112,10 +104,6 @@ function atualizarEvolucaoAno(){
   miniGraficoLinhas('grafico-evolucao-valor', mesesConsiderados, [
     {nome:'Previsto', dados: linhas.map(l=>l.valorPrevisto), cor:'#C495B8', tracejado:true},
     {nome:'Realizado', dados: linhas.map(l=>l.valorRealizado), cor:'#5C2350'}
-  ]);
-  miniGraficoLinhas('grafico-evolucao-qtd', mesesConsiderados, [
-    {nome:'Prevista', dados: linhas.map(l=>l.qtdePrevista), cor:'#9FD6C8', tracejado:true},
-    {nome:'Realizada', dados: linhas.map(l=>l.qtdeRealizada), cor:'#146B5D'}
   ]);
 }
 
@@ -134,11 +122,14 @@ function prepararSelectsAnalise(){
   document.getElementById('filtro-dimensao-analise').innerHTML = opcoesDimensao;
   document.getElementById('filtro-correlacao-a').innerHTML = opcoesDimensao;
   document.getElementById('filtro-correlacao-b').innerHTML = opcoesDimensao;
+  document.getElementById('filtro-correlacao-sub').innerHTML = '<option value="">Nenhuma</option>' + opcoesDimensao;
   document.getElementById('filtro-correlacao-a').value = 'convenio';
   document.getElementById('filtro-correlacao-b').value = 'procedimento';
+  document.getElementById('filtro-correlacao-sub').value = 'exames';
   document.getElementById('filtro-dimensao-analise').addEventListener('change', atualizarAnaliseDimensao);
   document.getElementById('filtro-correlacao-a').addEventListener('change', atualizarCorrelacao);
   document.getElementById('filtro-correlacao-b').addEventListener('change', atualizarCorrelacao);
+  document.getElementById('filtro-correlacao-sub').addEventListener('change', atualizarCorrelacao);
   document.getElementById('filtro-correlacao-metrica').addEventListener('change', atualizarCorrelacao);
   selectsAnaliseProntos = true;
 }
@@ -177,13 +168,24 @@ function atualizarAnaliseDimensao(){
 function atualizarCorrelacao(){
   const campoA = document.getElementById('filtro-correlacao-a').value;
   const campoB = document.getElementById('filtro-correlacao-b').value;
+  const campoSub = document.getElementById('filtro-correlacao-sub').value; // opcional
   const metrica = document.getElementById('filtro-correlacao-metrica').value;
   const registros = estado.registrosDashboard || [];
   const tabela = document.getElementById('tabela-correlacao');
 
+  // Subcategoria: quando um registro TEM valor nesse campo (ex.: Exame
+  // preenchido), a coluna vira "Atendimento — Exame" em vez de só
+  // "Atendimento" — abre o detalhe só de quem tem esse dado; quem não tem
+  // continua numa coluna só, sem virar "— (não informado)" toda hora.
+  const colunaDe = r => {
+    const b = rotuloValorAnalise(r[campoB]);
+    if(!campoSub) return b;
+    const sub = r[campoSub];
+    return (sub && String(sub).trim()) ? `${b} — ${rotuloValorAnalise(sub)}` : b;
+  };
 
   const valoresA = Array.from(new Set(registros.map(r=>rotuloValorAnalise(r[campoA])))).sort();
-  const valoresB = Array.from(new Set(registros.map(r=>rotuloValorAnalise(r[campoB])))).sort();
+  const valoresB = Array.from(new Set(registros.map(colunaDe))).sort();
 
 
   if(valoresA.length===0 || valoresB.length===0){
@@ -194,7 +196,7 @@ function atualizarCorrelacao(){
 
   const matriz = {};
   registros.forEach(r=>{
-    const a = rotuloValorAnalise(r[campoA]), b = rotuloValorAnalise(r[campoB]);
+    const a = rotuloValorAnalise(r[campoA]), b = colunaDe(r);
     matriz[a] = matriz[a] || {};
     matriz[a][b] = matriz[a][b] || {quantidade:0, valor:0};
     matriz[a][b].quantidade += 1;
@@ -207,8 +209,10 @@ function atualizarCorrelacao(){
   const rotuloB = DIMENSOES_ANALISE.find(d=>d.chave===campoB).rotulo;
 
 
+  const rotuloBComSub = campoSub ? `${rotuloB} (+ ${DIMENSOES_ANALISE.find(d=>d.chave===campoSub).rotulo})` : rotuloB;
+
   tabela.innerHTML = `
-    <thead><tr><th>${rotuloA} \\ ${rotuloB}</th>${valoresB.map(b=>`<th>${b}</th>`).join('')}<th>Total</th></tr></thead>
+    <thead><tr><th>${rotuloA} \\ ${rotuloBComSub}</th>${valoresB.map(b=>`<th>${b}</th>`).join('')}<th>Total</th></tr></thead>
     <tbody>${valoresA.map(a=>{
       const totalLinha = valoresB.reduce((s,b)=> s + ((matriz[a] && matriz[a][b]) ? matriz[a][b][metrica] : 0), 0);
       return `<tr><td>${a}</td>${valoresB.map(b=>{
@@ -352,7 +356,11 @@ function rmrRenderResumo(doMesAtual, doMesAnterior, metasDoMes){
   const totalAnterior = doMesAnterior.length;
   const valorAtual = doMesAtual.reduce((s,r)=>s+(Number(r.valor)||0),0);
   const valorAnterior = doMesAnterior.reduce((s,r)=>s+(Number(r.valor)||0),0);
-  const metaTotal = metasDoMes.reduce((s,m)=>s+(Number(m.meta_valor)||0),0);
+  // Meta total = soma, por profissional, de (Turnos Utilizados salvo em
+  // Metas × Vr mínimo esperado por turno).
+  const metaTotal = metasDoMes.reduce((s,m)=>{
+    return s + (Number(m.turnos_utilizados)||0) * (Number(m.valor_minimo_turno)||0);
+  }, 0);
   const profissionaisAtivos = new Set(doMesAtual.map(r=>r.prof)).size;
 
 
@@ -396,9 +404,11 @@ function rmrRenderProfissionais(mesRef, ano, anoAnterior){
   const metaPorProf = {}; metasDoMes.forEach(m=>metaPorProf[m.prof]=m);
   const linhas = Object.keys(porProf).sort().map(prof=>{
     const meta = metaPorProf[prof]||{};
-    const temMeta = Number(meta.meta_valor) > 0;
-    const pct = temMeta ? Math.min(150,(porProf[prof].valor/meta.meta_valor)*100) : null;
-    return {prof, ...porProf[prof], turnos:meta.turnos_disponibilizados||'—', meta:meta.meta_valor||0, pct};
+    const turnosMeta = Number(meta.turnos_utilizados)||0;
+    const valorMeta = turnosMeta * (Number(meta.valor_minimo_turno)||0);
+    const temMeta = valorMeta > 0;
+    const pct = temMeta ? Math.min(150,(porProf[prof].valor/valorMeta)*100) : null;
+    return {prof, ...porProf[prof], turnos:turnosMeta||'—', meta:valorMeta, pct};
   });
   const tabela = document.getElementById('rmr-tabela-profissionais-mes');
   if(linhas.length===0){
@@ -407,7 +417,7 @@ function rmrRenderProfissionais(mesRef, ano, anoAnterior){
     return;
   }
   tabela.innerHTML = `
-    <thead><tr><th>Profissional</th><th>Turnos disp.</th><th>Atendimentos</th><th>Valor realizado</th><th>Meta (R$)</th><th>% atingido</th></tr></thead>
+    <thead><tr><th>Profissional</th><th>Turnos utilizados</th><th>Atendimentos</th><th>Valor realizado</th><th>Valor da meta (R$)</th><th>% atingido</th></tr></thead>
     <tbody>${linhas.map(l=>`
       <tr><td>${l.prof}</td><td>${l.turnos}</td><td>${l.quantidade}</td><td class="mono">${formatarMoeda(l.valor)}</td>
       <td class="mono">${l.meta?formatarMoeda(l.meta):'—'}</td>
@@ -432,13 +442,15 @@ function rmrRenderTabelaProfissionalDetalhe(prof, mesRef, ano, anoAnterior){
     const meta = metaMap[mes]||{};
     const turnosUsados = new Set(doMesAtual.map(r=>r.data+'_'+r.turno)).size;
     const media = turnosUsados ? valorAtual/turnosUsados : 0;
-    return {mes, turnos:meta.turnos_disponibilizados||'—', metaValor:meta.meta_valor||0, valorAtual, valorAnterior, media};
+    const turnosMeta = Number(meta.turnos_utilizados)||0;
+    const metaValor = turnosMeta * (Number(meta.valor_minimo_turno)||0);
+    return {mes, turnos:turnosMeta||'—', metaValor, valorAtual, valorAnterior, media};
   });
 
 
   const tabela = document.getElementById('rmr-tabela-profissional-detalhe');
   tabela.innerHTML = `
-    <thead><tr><th>Mês</th><th>Turnos disp.</th><th>Meta (R$)</th><th>Realizado ${ano}</th><th>Realizado ${anoAnterior}</th><th>Média/turno</th></tr></thead>
+    <thead><tr><th>Mês</th><th>Turnos utilizados</th><th>Valor da meta (R$)</th><th>Realizado ${ano}</th><th>Realizado ${anoAnterior}</th><th>Média/turno</th></tr></thead>
     <tbody>${linhas.map(l=>`
       <tr><td>${l.mes}</td><td>${l.turnos}</td><td class="mono">${l.metaValor?formatarMoeda(l.metaValor):'—'}</td>
       <td class="mono">${formatarMoeda(l.valorAtual)}</td><td class="mono">${formatarMoeda(l.valorAnterior)}</td>
@@ -539,25 +551,22 @@ function rmrRenderTurnos(doMesAtual, metasDoMes){
     usoPorProf[r.prof] = usoPorProf[r.prof] || new Set();
     usoPorProf[r.prof].add(r.data+'_'+r.turno);
   });
-  const linhas = metasDoMes.map(m=>{
-    const usados = usoPorProf[m.prof] ? usoPorProf[m.prof].size : 0;
-    const disp = Number(m.turnos_disponibilizados)||0;
-    const ociosos = Math.max(0, disp-usados);
-    const pct = disp ? Math.round((usados/disp)*100) : 0;
-    return {prof:m.prof, disp, usados, ociosos, pct};
-  }).sort((a,b)=>b.disp-a.disp);
+  // "Disponibilizados"/"Ociosos"/"% eficiência" saíram — dependiam de um
+  // número digitado à mão (Turnos disponibilizados) que não existe mais na
+  // aba Metas. Turnos Utilizados agora é só a contagem real, sem
+  // comparação com um "planejado".
+  const linhas = Object.keys(usoPorProf).map(prof=>({
+    prof, usados: usoPorProf[prof].size
+  })).sort((a,b)=>b.usados-a.usados);
 
 
   const tabela = document.getElementById('rmr-tabela-turnos');
-  tabela.innerHTML = linhas.length===0 ? '<tr><td class="vazio">Cadastre metas de turnos disponibilizados para ver esta tabela.</td></tr>' : `
-    <thead><tr><th>Profissional</th><th>Disponibilizados</th><th>Vendidos</th><th>Ociosos</th><th>% eficiência</th></tr></thead>
-    <tbody>${linhas.map(l=>`<tr><td>${l.prof}</td><td>${l.disp}</td><td>${l.usados}</td><td>${l.ociosos}</td><td>${l.pct}%</td></tr>`).join('')}</tbody>`;
+  tabela.innerHTML = linhas.length===0 ? '<tr><td class="vazio">Sem lançamentos no período.</td></tr>' : `
+    <thead><tr><th>Profissional</th><th>Turnos utilizados</th></tr></thead>
+    <tbody>${linhas.map(l=>`<tr><td>${l.prof}</td><td>${l.usados}</td></tr>`).join('')}</tbody>`;
 
 
-  miniGraficoBarrasEmpilhadas('rmr-grafico-turnos', linhas.map(l=>l.prof), [
-    {nome:'Vendidos', dados: linhas.map(l=>l.usados), cor:'#146B5D'},
-    {nome:'Ociosos', dados: linhas.map(l=>l.ociosos), cor:'#C495B8'}
-  ]);
+  miniGraficoBarras('rmr-grafico-turnos', linhas.map(l=>l.prof), linhas.map(l=>l.usados), '#146B5D');
 }
 
 
@@ -595,7 +604,11 @@ function rmrRenderMatrizConvenio(doMesAtual){
   const profissionais = Array.from(profissionaisSet).sort();
   const convenios = Array.from(conveniosSet).sort();
   const tabela = document.getElementById('rmr-tabela-matriz-convenio');
-  if(profissionais.length===0){ tabela.innerHTML='<tr><td class="vazio">Nenhum atendimento por convênio no período.</td></tr>'; return; }
+  if(profissionais.length===0){
+    tabela.innerHTML='<tr><td class="vazio">Nenhum atendimento por convênio no período.</td></tr>';
+    graficoVazio('rmr-grafico-matriz-convenio');
+    return;
+  }
   tabela.innerHTML = `
     <thead><tr><th>Profissional</th>${convenios.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
     <tbody>${profissionais.map(p=>{
@@ -604,6 +617,11 @@ function rmrRenderMatrizConvenio(doMesAtual){
     }).join('')}
     <tr class="linha-total"><td>Total</td>${convenios.map(c=>`<td class="mono">${formatarMoeda(profissionais.reduce((s,p)=>s+((matriz[p]&&matriz[p][c])||0),0))}</td>`).join('')}<td></td></tr>
     </tbody>`;
+
+  // Gráfico complementar — total por convênio (soma de todos os
+  // profissionais), a mesma linha "Total" da tabela, só que em rosca.
+  const totalPorConvenio = convenios.map(c => profissionais.reduce((s,p)=>s+((matriz[p]&&matriz[p][c])||0),0));
+  miniGraficoRosca('rmr-grafico-matriz-convenio', convenios, totalPorConvenio);
 }
 
 
@@ -628,23 +646,22 @@ function rmrRenderEficiencia(doMesAtual, metasDoMes){
   const linhasCalculadas = todosProf.map(prof=>{
     const dados = porProf[prof] || {quantidade:0, valor:0, turnos:new Set()};
     const meta = metaMap[prof] || {};
-    const disp = Number(meta.turnos_disponibilizados)||0;
     const vendidos = dados.turnos.size;
-    const pctTurnos = disp ? Math.round((vendidos/disp)*100) : 0;
-    const temMeta = Number(meta.meta_valor) > 0;
-    const pctMeta = temMeta ? Math.round((dados.valor/meta.meta_valor)*100) : null;
+    const valorMeta = (Number(meta.turnos_utilizados)||0) * (Number(meta.valor_minimo_turno)||0);
+    const temMeta = valorMeta > 0;
+    const pctMeta = temMeta ? Math.round((dados.valor/valorMeta)*100) : null;
     const media = vendidos ? dados.valor/vendidos : 0;
-    return {prof, disp, vendidos, pctTurnos, temMeta, pctMeta, valor:dados.valor, meta:meta.meta_valor, media};
+    return {prof, vendidos, temMeta, pctMeta, valor:dados.valor, meta:valorMeta, media};
   });
   tabela.innerHTML = `
-    <thead><tr><th>Profissional</th><th>Turnos disp.</th><th>Turnos vendidos</th><th>% eficiência turnos</th><th>Meta (R$)</th><th>Realizado (R$)</th><th>% meta atingida</th><th>Média/turno</th></tr></thead>
+    <thead><tr><th>Profissional</th><th>Turnos utilizados</th><th>Valor da meta (R$)</th><th>Realizado (R$)</th><th>% meta atingida</th><th>Média/turno</th></tr></thead>
     <tbody>${linhasCalculadas.map(l=>{
-      return `<tr><td>${l.prof}</td><td>${l.disp||'—'}</td><td>${l.vendidos}</td><td>${l.pctTurnos}%</td>
+      return `<tr><td>${l.prof}</td><td>${l.vendidos}</td>
         <td class="mono">${l.temMeta?formatarMoeda(l.meta):'—'}</td><td class="mono">${formatarMoeda(l.valor)}</td>
         <td>${l.temMeta ? `<div class="mono" style="font-size:11.5px;">${l.pctMeta}%</div><div class="barra-meta"><div style="width:${Math.min(100,l.pctMeta)}%;"></div></div>` : `<div class="mono" style="font-size:11.5px;color:var(--ink-400);">—</div>`}</td>
         <td class="mono">${formatarMoeda(l.media)}</td></tr>`;
     }).join('')}</tbody>`;
-  miniGraficoBarras('grafico-eficiencia', linhasCalculadas.map(l=>l.prof), linhasCalculadas.map(l=>l.pctTurnos), '#0E5548');
+  miniGraficoBarras('grafico-eficiencia', linhasCalculadas.map(l=>l.prof), linhasCalculadas.map(l=>l.pctMeta||0), '#0E5548');
 }
 
 
@@ -802,18 +819,15 @@ async function gerarRelatorioDadosBrutos(modo){
   comBiopsia.forEach(r=>{ porBiopsia[r.biopsias]=(porBiopsia[r.biopsias]||0)+1; });
   const linhasBiopsia = Object.keys(porBiopsia).sort().map(f=>[f, porBiopsia[f]]);
 
-  // --- Eficiência de turnos por profissional (usa metas do período) ---
-  const usoPorProf = {};
-  registros.forEach(r=>{
-    usoPorProf[r.prof] = usoPorProf[r.prof] || new Set();
-    usoPorProf[r.prof].add(r.data+'_'+r.turno);
-  });
+  // --- Metas financeiras por profissional (usa metas do período) ---
+  const valorPorProf = {};
+  registros.forEach(r=>{ valorPorProf[r.prof] = (valorPorProf[r.prof]||0) + (Number(r.valor)||0); });
   const linhasEficiencia = metas.map(m=>{
-    const usados = usoPorProf[m.prof] ? usoPorProf[m.prof].size : 0;
-    const disp = Number(m.turnos_disponibilizados)||0;
-    const ociosos = Math.max(0, disp-usados);
-    const pct = disp ? Math.round((usados/disp)*100)+'%' : '—';
-    return [m.prof, disp, usados, ociosos, pct];
+    const turnosMeta = Number(m.turnos_utilizados)||0;
+    const valorMeta = turnosMeta * (Number(m.valor_minimo_turno)||0);
+    const realizado = valorPorProf[m.prof]||0;
+    const pct = valorMeta ? Math.round((realizado/valorMeta)*100)+'%' : '—';
+    return [m.prof, turnosMeta, valorMeta?formatarMoeda(valorMeta):'—', formatarMoeda(realizado), pct];
   }).sort((a,b)=>b[1]-a[1]);
 
   // --- Evolução mensal (só no modo "ano") ---
@@ -866,7 +880,7 @@ ${relatorioTabelaHtml('Por convênio', ['Convênio','Qtd.','Valor'], linhasConve
 
 <h2>Produção por profissional</h2>
 ${relatorioTabelaHtml('Ranking', ['Profissional','Atendimentos','Valor realizado','Ticket médio'], linhasProf)}
-${relatorioTabelaHtml('Eficiência de turnos', ['Profissional','Turnos disp.','Turnos usados','Ociosos','% eficiência'], linhasEficiencia)}
+${relatorioTabelaHtml('Metas financeiras', ['Profissional','Turnos utilizados','Valor da meta','Realizado','% atingido'], linhasEficiencia)}
 
 <h2>Atendimentos e exames</h2>
 ${relatorioTabelaHtml('Por atendimento', ['Atendimento','Qtd.','Valor'], linhasProcedimento)}

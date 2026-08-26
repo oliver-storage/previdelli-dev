@@ -282,6 +282,7 @@
   .kpi .valor{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;color:var(--plum-900);margin-top:8px;}
   .kpi .valor.teal{color:var(--teal-700);}
   .kpi .valor.gold{color:var(--gold-600);}
+  .kpi .valor-secundario{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ink-400);margin-top:4px;}
 
 
   .grade-2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}

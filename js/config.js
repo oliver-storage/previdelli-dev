@@ -532,6 +532,157 @@
             próximo — isso também resolve fatias pequenas que apareciam
             como "(0%)" e escondiam o valor real (ex.: Correios virava
             "0,02%" em vez de sumir como "0%").
+   v6.14.0 — Reformulação grande da aba Metas (a pedido do usuário):
+            a meta de cada profissional deixou de ser digitada e passou a
+            ser CALCULADA. Colunas novas: Profissional | Turnos Utilizados
+            (contagem real de (data,turno) distintos com lançamento no
+            mês — não é mais digitado) | Vr Mínimo p/ Prof (R$) — único
+            campo editável, um valor de referência por turno | Valor da
+            Meta (R$) — Turnos Utilizados × Vr Mínimo, recalculado ao
+            vivo na tela conforme digita, sem precisar salvar pra ver.
+            "Turnos disponibilizados" e "Meta de quantidade" saíram de
+            uso em TODO o sistema — não são mais digitados nem lidos em
+            lugar nenhum (Metas, Análises/RMR, RMR-squad, Apresentação).
+            A verificação de meta agora é 100% por valor.
+            Isso mudou 3 telas de Análises (evolução anual — removeu o
+            gráfico de quantidade prevista×realizada; resumo do mês;
+            ranking por profissional; detalhe por profissional), a tabela
+            de turnos (virou só "Turnos Utilizados", sem mais "Ociosos"/
+            "% eficiência" — não tinha mais um "planejado" pra comparar) e
+            a tabela de eficiência (virou "Metas financeiras por
+            profissional", card renomeado). Também mudou RMR-squad (tabela
+            "Dados de atendimento" de cada médico) e 2 slides da
+            Apresentação (Térreo Previsto×Realizado, Coparticipados —
+            renomeada "Turnos e Metas Financeiras").
+            Requer coluna nova no Supabase — SQL:
+            alter table metas add column if not exists valor_minimo_turno numeric default 0;
+            As colunas antigas (turnos_disponibilizados, meta_valor,
+            meta_qtd) ficam no banco sem uso — não removi via DROP COLUMN
+            pra não arriscar perder histórico; se quiser limpar depois, dá
+            pra rodar um DROP COLUMN separado quando tiver certeza que não
+            precisa mais delas.
+   v6.14.1 — Correção a pedido do usuário: "Turnos Utilizados" (aba Metas)
+            virou campo DIGITÁVEL — a v6.14.0 tinha deixado só como número
+            calculado e travado. Agora vem PRÉ-PREENCHIDO com a contagem
+            real da produção (como sugestão), mas o usuário pode digitar
+            por cima e salvar seu próprio número — por exemplo pra
+            planejar um mês sem lançamento ainda, ou corrigir uma
+            contagem. O valor SALVO é o que passa a valer em todo canto
+            (Valor da Meta na própria aba, e em RMR/Análises/Apresentação)
+            — deixou de recalcular da produção toda vez, usa o salvo.
+            Testado: editar (10 turnos, R$300/turno) e salvar reflete
+            R$ 3.000,00 de meta na hora, em todas as telas.
+            Requer coluna nova no Supabase — SQL:
+            alter table metas add column if not exists turnos_utilizados numeric default 0;
+   v6.14.2 — Correção a pedido do usuário: o card "Retorno (Consulta
+            Particular)" da RMR (v6.13.3) estava aparecendo zerado —
+            filtrava Procedimento=Retorno E Convênio=Particular/vazio, e
+            na prática os retornos tinham convênio preenchido com outra
+            coisa. Simplificado: virou só "Retorno", conta qualquer
+            atendimento com Procedimento=Retorno, sem olhar o convênio.
+   v6.15.0 — Gráficos, a pedido do usuário:
+            Números crus (tipo "204936.23999999996") em rótulos de linha,
+            barra e barra empilhada agora cortam em NO MÁXIMO 2 casas
+            decimais (nova `formatarNumeroGrafico` em graficos.js) — sem
+            forçar decimal em número inteiro (101 continua "101"). Vale
+            pros rótulos visíveis E pros tooltips (hover).
+            Gráficos de rosca (pizza) ganharam rótulo de porcentagem
+            DENTRO da fatia (não só na legenda) — só nas fatias grandes o
+            bastante pra caber texto legível (≥5% do total), pra não virar
+            bagunça nas fatias minúsculas.
+            Apresentação: 4 gráficos que mostravam QUANTIDADE viraram
+            VALOR (R$) — "Coparticipados — Top 10 Profissionais" (era por
+            atendimento, virou por faturamento, título atualizado),
+            "Coparticipados — Ultrassom" (era volume, virou faturamento),
+            "Térreo — Volume Operacional" (exames, era contagem, virou
+            R$), e o gráfico de cada slide individual de procedimento
+            (era volume mensal, virou faturamento mensal) — legendas
+            atualizadas nos 4.
+   v6.15.1 — Aba Verificação → sub-aba Verificar: cabeçalho do cartão
+            "Lançamentos" agora mostra "N pacientes • N atendimentos" —
+            pacientes DISTINTOS (não conta duas vezes quem tem mais de um
+            lançamento no período), respeitando todos os filtros já
+            aplicados na tela (profissional, andar, convênio, exame,
+            procedimento, paciente, forma de pagamento, período). Sempre
+            visível, não depende da permissão financeira do cartão
+            "Resumo financeiro" ao lado.
+   v6.15.2 — Ajuste a pedido do usuário: a contagem de pacientes da
+            v6.15.1 (texto pequeno no cabeçalho de "Lançamentos") virou um
+            CARD de verdade, no mesmo estilo dos outros — agora mora
+            dentro do cartão "Resumo financeiro", como o PRIMEIRO card da
+            fileira (antes dos valores por forma de pagamento), em cinza
+            claro pra se diferenciar dos valores financeiros (que ficam em
+            teal). Continua contando pacientes distintos, respeitando os
+            filtros — e continua aparecendo mesmo pra quem não tem a
+            permissão financeira (só os outros cards de valor é que somem
+            nesse caso).
+   v6.15.3 — Aba Verificação → sub-aba Verificar: novo card "Quantidade
+            (Convênio)" — conta quantos atendimentos/partes de pagamento
+            foram pagos via Convênio no período filtrado (diferente do
+            card "Valor (Convênio)" ao lado, que mostra o R$ total — esse
+            card teve o rótulo ajustado de "Convênio" pra "Valor
+            (Convênio)" pra não confundir os dois). Fica logo depois de
+            "Quantidade de pacientes", mesmo estilo cinza claro. Conferido
+            contra contagem manual dos dados — bate certinho.
+   v6.15.4 — Correção de rumo (a v6.15.3 não era o que o usuário queria):
+            removido o card "Quantidade (Convênio)" (era sobre forma de
+            pagamento, não sobre convênio de verdade) — rótulo "Convênio"
+            no Resumo financeiro voltou a ser só "Convênio" (sem mais
+            precisar de "Valor (" na frente).
+            Novo cartão "Por convênio", separado do "Resumo financeiro" —
+            um card por CONVÊNIO de verdade (Particular, Unimed, Cassi
+            etc. — só os que aparecem no período filtrado), cada um em 2
+            linhas dentro do mesmo card: valor em R$ em cima, quantidade
+            de atendimentos embaixo (nova classe .valor-secundario no
+            CSS). "Quantidade de pacientes" continua como estava, sozinho,
+            estilo cinza claro.
+   v6.15.5 — Aba Análises: a tabela "Convênios × Profissional" já existia
+            (usuário pediu de novo, mas ela já estava lá) — o que faltava
+            e foi adicionado agora é o GRÁFICO complementar: uma rosca
+            logo abaixo da tabela, "Total por convênio" (soma de todos os
+            profissionais por convênio — a mesma linha "Total" da tabela,
+            em formato visual). Ficou embaixo da tabela, não do lado, já
+            que a tabela é bem larga (10+ colunas de convênio).
+   v6.16.0 — Análises → "Correlação entre duas dimensões": novo seletor
+            "Subcategoria (opcional)" (padrão: Exame, já que era o
+            exemplo do usuário — Convênio × Atendimento com Exame como
+            subcategoria). Quando escolhida, cada coluna que tiver aquele
+            detalhe preenchido (ex.: Atendimento=USG, que tem Exame
+            específico) abre em colunas separadas por valor ("USG —
+            Mamas", "USG — Transvaginal" etc.) — registros sem esse
+            detalhe (ex.: Consulta, Retorno, Sessão, que não têm Exame)
+            continuam numa coluna só, sem virar "— (não informado)".
+            "Nenhuma" (padrão anterior) preserva o comportamento de antes
+            sem mudança.
+   v6.17.0 — Configurações reorganizada em sub-abas: Cadastros (Listas do
+            sistema, as 4 matrizes de vínculo, Importar CSV) | Financeiro
+            (Plano de Contas da DRE) | Identidade (nome/logo/cor, Aparência
+            dos gráficos) | Direitos e Privilégios (sem mudança nessa).
+            6 permissões novas, granulares por grupo — Ver/Editar de
+            "Parâmetros — Cadastros", "Parâmetros — Financeiro" e
+            "Parâmetros — Identidade" (aparecem em Direitos e Privilégios,
+            que já lista permissões dinamicamente). Antes, os 4 cadastros
+            de vínculo e o Plano de Contas eram travados a "só gerente" no
+            código, sem opção de liberar — agora seguem essas permissões
+            novas, liberáveis por usuário como qualquer outra.
+            Migração automática (temPermissaoParametro, em estado.js):
+            enquanto ninguém mexer explicitamente numa permissão nova pra
+            um usuário, ela cai pro comportamento de ver_configuracoes/
+            editar_configuracoes — quem já tinha acesso continua tendo,
+            sem precisar reconfigurar nada. No dia que alguém ligar/
+            desligar a permissão nova explicitamente pra um usuário, essa
+            escolha passa a valer só pra ele, sem afetar os demais.
+            Direitos e Privilégios continua 100% exclusivo do gerente,
+            sem exceção (proteção contra autoconcessão de acesso).
+            Testado: gerente vê tudo; atendente sem nada não vê nenhuma
+            sub-aba; atendente com editar_configuracoes legado herda
+            Cadastros/Financeiro/Identidade automaticamente; override
+            explícito restringindo só Financeiro funciona isolado, sem
+            afetar Cadastros/Identidade do mesmo usuário.
+            Vr Mínimo por Profissional (Metas) e Repasse de Coparticipados
+            (Verificar) ficaram FORA desta reorganização, a pedido do
+            usuário — continuam onde estavam, editados junto com os dados
+            que dependem deles.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

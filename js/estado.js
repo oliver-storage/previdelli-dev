@@ -48,6 +48,12 @@ const DEFINICAO_PERMISSOES = [
   {tela:'RMR',            chave:'ver_rmr_squad',           rotulo:'Ver'},
   {tela:'Configurações',  chave:'ver_configuracoes',       rotulo:'Ver'},
   {tela:'Configurações',  chave:'editar_configuracoes',    rotulo:'Editar'},
+  {tela:'Parâmetros — Cadastros',     chave:'ver_parametros_cadastros',     rotulo:'Ver'},
+  {tela:'Parâmetros — Cadastros',     chave:'editar_parametros_cadastros',  rotulo:'Editar'},
+  {tela:'Parâmetros — Financeiro',    chave:'ver_parametros_financeiros',   rotulo:'Ver'},
+  {tela:'Parâmetros — Financeiro',    chave:'editar_parametros_financeiros',rotulo:'Editar'},
+  {tela:'Parâmetros — Identidade',    chave:'ver_parametros_aparencia',     rotulo:'Ver'},
+  {tela:'Parâmetros — Identidade',    chave:'editar_parametros_aparencia',  rotulo:'Editar'},
   {tela:'Apresentação',   chave:'ver_apresentacao',        rotulo:'Ver'},
   {tela:'Financeiro',     chave:'ver_financeiro',          rotulo:'Ver'},
   {tela:'Financeiro',     chave:'editar_financeiro',       rotulo:'Editar'}
@@ -81,6 +87,22 @@ function calcularPermissoesEfetivas(papel, sobrescritas){
 // a permissão efetiva daquela chave estiver marcada.
 function temPermissao(chave){
   return estado.papel === 'gerente' || !!estado.permissoes[chave];
+}
+
+// Igual a temPermissao, mas com "migração automática": se a permissão NOVA
+// (ex.: ver_parametros_cadastros) nunca foi explicitamente ligada/desligada
+// pra esse usuário, cai pro comportamento da permissão ANTIGA equivalente
+// (ex.: ver_configuracoes/editar_configuracoes) — assim, quem já podia
+// editar Configurações antes de existirem essas permissões novas continua
+// podendo, sem precisar reconfigurar nada. No dia que alguém mexer
+// explicitamente na permissão nova em Direitos e Privilégios, essa
+// escolha explícita passa a valer, e o fallback para de se aplicar pra
+// aquele usuário.
+function temPermissaoParametro(chaveNova, chaveAntigaFallback){
+  if(estado.papel === 'gerente') return true;
+  const valorNovo = estado.permissoes[chaveNova];
+  if(valorNovo !== undefined) return !!valorNovo;
+  return !!estado.permissoes[chaveAntigaFallback];
 }
 
 
