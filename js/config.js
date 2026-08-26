@@ -737,6 +737,11 @@
             Testado: busca de paciente, reaproveitamento sem duplicar,
             criação de paciente novo, profissional inexistente não quebra
             o salvamento (resolve pra null com segurança).
+   v6.19.1 — Sem mudança funcional — só bump de versão pra forçar o
+            GitHub Desktop a detectar diferença e permitir subir os
+            arquivos de novo (usuário relatou que o site no ar estava
+            servindo um index.html antigo, com styles.css/app.js — nomes
+            que o ProdClin nunca teve).
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
