@@ -138,5 +138,6 @@ const estado = {
   logoClinica:null,
   corPrimaria:null,
   graficoCorPrimaria:null,
-  graficoTamanhoTexto:'medio'
+  graficoTamanhoTexto:'medio',
+  camposTravados:{atendente:[], profissional:[]}
 };

@@ -384,25 +384,59 @@ function preencherSelectsPeriodo(){
 /* ---------------------------------------------------------------------
    CAMPOS DO FORMULÁRIO (compartilhados entre Lançamento e Modal)
 --------------------------------------------------------------------- */
+// Lista de "grupos travàveis" pra Configurações → Cadastros → "Campos
+// travados por papel". Valor e Forma de pagamento andam juntos como um
+// grupo só (chave 'valor', mas trava os dois — ver htmlSecaoFormaPagamento)
+// porque são a mesma seção na tela, calculados juntos.
+const CAMPOS_TRAVAVEIS = [
+  {chave:'prof', rotulo:'Profissional'},
+  {chave:'andar', rotulo:'Andar'},
+  {chave:'data', rotulo:'Data'},
+  {chave:'turno', rotulo:'Turno'},
+  {chave:'paciente', rotulo:'Paciente'},
+  {chave:'protocolo', rotulo:'Protocolo de realização'},
+  {chave:'procedimento', rotulo:'Atendimento'},
+  {chave:'exames', rotulo:'Exame'},
+  {chave:'biopsias', rotulo:'Biópsia (frascos)'},
+  {chave:'convenio', rotulo:'Convênio'},
+  {chave:'carteirinha', rotulo:'Carteirinha'},
+  {chave:'atendente', rotulo:'Atendente'},
+  {chave:'valor', rotulo:'Valor / Forma de pagamento'}
+];
+
+
+// Campo travado por configuração (Configurações → Cadastros → "Campos
+// travados por papel") — funciona junto com as travas fixas que já
+// existiam (ex.: Profissional travado com o próprio nome pra quem é
+// profissional). Gerente nunca é afetado por essa trava, só
+// atendente/profissional.
+function campoTravadoPorConfig(chave){
+  if(estado.papel==='gerente') return false;
+  const lista = estado.camposTravados[estado.papel] || [];
+  return lista.includes(chave);
+}
+
 function definicaoCampos(){
   const L = estado.listas;
   return [
     {chave:'prof', rotulo:'Profissional', tipo:'select', opcoes:L.profissionais, obrigatorio:true,
-      travado: estado.papel==='profissional'},
-    {chave:'andar', rotulo:'Andar', tipo:'select', opcoes:L.andares, obrigatorio:true},
-    {chave:'data', rotulo:'Data', tipo:'date', obrigatorio:true},
-    {chave:'turno', rotulo:'Turno', tipo:'select', opcoes:L.turnos, obrigatorio:true},
-    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'text', obrigatorio:true},
-    {chave:'protocolo', rotulo:'Protocolo de realização', tipo:'text'},
-    {chave:'procedimento', rotulo:'Atendimento', tipo:'select', opcoes:L.procedimentos, obrigatorio:true},
-    {chave:'exames', rotulo:'Exame', tipo:'select', opcoes:L.exames},
-    {chave:'biopsias', rotulo:'Biópsia (frascos)', tipo:'select', opcoes:L.biopsias_frascos},
-    {chave:'convenio', rotulo:'Convênio', tipo:'select', opcoes:L.convenios, obrigatorio:true},
-    {chave:'carteirinha', rotulo:'Carteirinha', tipo:'text'},
-    {chave:'atendente', rotulo:'Atendente', tipo:'select', opcoes:L.atendentes, obrigatorio:true}
+      travado: estado.papel==='profissional' || campoTravadoPorConfig('prof')},
+    {chave:'andar', rotulo:'Andar', tipo:'select', opcoes:L.andares, obrigatorio:true, travado: campoTravadoPorConfig('andar')},
+    {chave:'data', rotulo:'Data', tipo:'date', obrigatorio:true, travado: campoTravadoPorConfig('data')},
+    {chave:'turno', rotulo:'Turno', tipo:'select', opcoes:L.turnos, obrigatorio:true, travado: campoTravadoPorConfig('turno')},
+    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'text', obrigatorio:true, travado: campoTravadoPorConfig('paciente')},
+    {chave:'protocolo', rotulo:'Protocolo de realização', tipo:'text', travado: campoTravadoPorConfig('protocolo')},
+    {chave:'procedimento', rotulo:'Atendimento', tipo:'select', opcoes:L.procedimentos, obrigatorio:true, travado: campoTravadoPorConfig('procedimento')},
+    {chave:'exames', rotulo:'Exame', tipo:'select', opcoes:L.exames, travado: campoTravadoPorConfig('exames')},
+    {chave:'biopsias', rotulo:'Biópsia (frascos)', tipo:'select', opcoes:L.biopsias_frascos, travado: campoTravadoPorConfig('biopsias')},
+    {chave:'convenio', rotulo:'Convênio', tipo:'select', opcoes:L.convenios, obrigatorio:true, travado: campoTravadoPorConfig('convenio')},
+    {chave:'carteirinha', rotulo:'Carteirinha', tipo:'text', travado: campoTravadoPorConfig('carteirinha')},
+    {chave:'atendente', rotulo:'Atendente', tipo:'select', opcoes:L.atendentes, obrigatorio:true, travado: campoTravadoPorConfig('atendente')}
     // "valor" e "forma_pagamento" saíram daqui — agora são calculados a partir
     // da seção de "Forma de pagamento" (que suporta pagamento dividido em mais
     // de uma forma). Ver htmlSecaoFormaPagamento / lerLinhasPagamento abaixo.
+    // Essas duas também são travadas por config, mas em outro lugar — ver
+    // htmlSecaoFormaPagamento e a trava de "valor"/"forma_pagamento" nela.
   ];
 }
 
@@ -416,24 +450,26 @@ function definicaoCampos(){
    das linhas preenchidas.
 --------------------------------------------------------------------- */
 function htmlSecaoFormaPagamento(prefixo, destacar=false){
+  const travado = campoTravadoPorConfig('valor') || campoTravadoPorConfig('forma_pagamento');
   return `<div class="campo${destacar?' campo-pendente':''}" style="grid-column:1/-1;">
     <label>Forma de pagamento *${destacar?' <span class="tag tag-alerta" style="margin-left:4px;">preencher</span>':''}</label>
-    <div id="${prefixo}pagamentos-linhas" class="linhas-pagamento"></div>
+    <div id="${prefixo}pagamentos-linhas" class="linhas-pagamento" data-travado="${travado?'1':''}"></div>
     <div style="display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap;">
-      <button type="button" class="botao sutil pequeno" id="${prefixo}botao-add-pagamento">+ Adicionar forma de pagamento</button>
+      <button type="button" class="botao sutil pequeno" id="${prefixo}botao-add-pagamento" ${travado?'style="display:none;"':''}>+ Adicionar forma de pagamento</button>
       <span style="font-size:13px;color:var(--ink-600);">Total: <b class="mono" id="${prefixo}pagamento-total">R$ 0,00</b></span>
     </div>
   </div>`;
 }
 
 
-function criarLinhaPagamentoHTML(forma='', valor=''){
+function criarLinhaPagamentoHTML(forma='', valor='', travado=false){
   const opcoes = (estado.listas.formas_pagamento||[])
     .map(f=>`<option value="${f}" ${f===forma?'selected':''}>${f}</option>`).join('');
+  const desabilitado = travado ? 'disabled' : '';
   return `<div class="linha-pagamento">
-    <select class="input-pagamento-forma"><option value="">Selecionar...</option>${opcoes}</select>
-    <input type="number" step="0.01" class="input-pagamento-valor" placeholder="Valor (R$)" value="${valor!==''&&valor!==undefined&&valor!==null?valor:''}">
-    <button type="button" class="botao-remover-pagamento" title="Remover">×</button>
+    <select class="input-pagamento-forma" ${desabilitado}><option value="">Selecionar...</option>${opcoes}</select>
+    <input type="number" step="0.01" class="input-pagamento-valor" placeholder="Valor (R$)" value="${valor!==''&&valor!==undefined&&valor!==null?valor:''}" ${desabilitado}>
+    <button type="button" class="botao-remover-pagamento" title="Remover" ${travado?'style="display:none;"':''}>×</button>
   </div>`;
 }
 
@@ -444,8 +480,11 @@ function criarLinhaPagamentoHTML(forma='', valor=''){
 function montarSecaoPagamento(prefixo, formasIniciais){
   const container = document.getElementById(prefixo+'pagamentos-linhas');
   if(!container) return;
+  const travado = campoTravadoPorConfig('valor') || campoTravadoPorConfig('forma_pagamento');
   const linhas = (formasIniciais && formasIniciais.length) ? formasIniciais : [{forma:'', valor:''}];
-  container.innerHTML = linhas.map(l=>criarLinhaPagamentoHTML(l.forma, l.valor)).join('');
+  container.innerHTML = linhas.map(l=>criarLinhaPagamentoHTML(l.forma, l.valor, travado)).join('');
+
+  if(travado) return; // não religa os eventos de editar — campo travado por config
 
   container.addEventListener('input', (ev)=>{
     if(ev.target.classList.contains('input-pagamento-valor')) atualizarTotalPagamento(prefixo);

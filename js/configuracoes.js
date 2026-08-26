@@ -108,13 +108,14 @@ async function atualizarConfiguracoes(){
   cartaoPermissoes.style.display = estado.papel==='gerente' ? '' : 'none';
   if(estado.papel==='gerente') await carregarPermissoes();
 
-  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais']
+  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados']
     .forEach(id => document.getElementById(id).style.display = podeVerCadastros ? '' : 'none');
   if(podeVerCadastros){
     await carregarProfissionaisAndares();
     await carregarProfissionaisProcedimentos();
     await carregarProfissionaisExames();
     await carregarAtendentesProfissionais();
+    renderizarCamposTravados(podeEditarCadastros);
   }
 
   const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
@@ -319,6 +320,51 @@ create policy acesso_total_anon on atendentes_profissionais for all using (true)
 // Profissional×Procedimento, Profissional×Exame e Atendente×Profissional,
 // já que as quatro seguem exatamente a mesma mecânica (só muda o que é
 // linha/coluna).
+// Matriz "Campos travados por papel" — campo × (Atendente, Profissional).
+// Diferente das outras matrizes (que salvam a cada clique), esta acumula
+// as marcações e só grava quando aperta "Salvar" — evita gravar 26 vezes
+// (13 campos × 2 papéis) se a pessoa for mexendo em vários de uma vez.
+let camposTravadosPronto = false;
+function renderizarCamposTravados(podeEditar){
+  const tabela = document.getElementById('tabela-campos-travados');
+  const desabilitado = podeEditar ? '' : 'disabled';
+  tabela.innerHTML = `
+    <thead><tr><th>Campo</th><th style="text-align:center;">Atendente</th><th style="text-align:center;">Profissional</th></tr></thead>
+    <tbody>${CAMPOS_TRAVAVEIS.map(c=>`
+      <tr data-campo="${c.chave}">
+        <td>${c.rotulo}</td>
+        <td style="text-align:center;"><input type="checkbox" class="chk-campo-travado-atendente" data-campo="${c.chave}" ${estado.camposTravados.atendente.includes(c.chave)?'checked':''} ${desabilitado}></td>
+        <td style="text-align:center;"><input type="checkbox" class="chk-campo-travado-profissional" data-campo="${c.chave}" ${estado.camposTravados.profissional.includes(c.chave)?'checked':''} ${desabilitado}></td>
+      </tr>`).join('')}</tbody>`;
+
+  document.getElementById('botao-salvar-campos-travados').style.display = podeEditar ? 'inline-flex' : 'none';
+  if(camposTravadosPronto || !podeEditar) return;
+  camposTravadosPronto = true;
+
+  document.getElementById('botao-salvar-campos-travados').addEventListener('click', async ()=>{
+    const botao = document.getElementById('botao-salvar-campos-travados');
+    const confirmacao = document.getElementById('confirmacao-campos-travados');
+    const novoAtendente = Array.from(tabela.querySelectorAll('.chk-campo-travado-atendente:checked')).map(el=>el.dataset.campo);
+    const novoProfissional = Array.from(tabela.querySelectorAll('.chk-campo-travado-profissional:checked')).map(el=>el.dataset.campo);
+    confirmacao.style.color = 'var(--ink-400)';
+    confirmacao.textContent = 'Salvando...';
+    try{
+      await api('salvarConfiguracao', {chave:'campos_travados_atendente', valor: JSON.stringify(novoAtendente)});
+      await api('salvarConfiguracao', {chave:'campos_travados_profissional', valor: JSON.stringify(novoProfissional)});
+    }catch(e){
+      confirmacao.style.color = 'var(--danger)';
+      confirmacao.textContent = 'Não foi possível salvar.';
+      return;
+    }
+    estado.camposTravados.atendente = novoAtendente;
+    estado.camposTravados.profissional = novoProfissional;
+    confirmacao.style.color = 'var(--teal-700)';
+    confirmacao.textContent = 'Salvo ✓ — já vale pro próximo lançamento/edição aberto.';
+    setTimeout(()=>{ if(confirmacao.textContent.startsWith('Salvo')) confirmacao.textContent=''; }, 4000);
+  });
+}
+
+
 function renderizarMatrizProfissionalCampo({tabela, porLinha, rotuloLinha, linhas, colunas, acao, nomeCampoLinha, nomeCampoAcao, classeCheckbox, aoAlterar, podeEditar=true}){
   if(linhas.length===0 || colunas.length===0){
     tabela.innerHTML = '<tr><td class="vazio">Cadastre os itens correspondentes em "Listas do sistema" primeiro.</td></tr>';

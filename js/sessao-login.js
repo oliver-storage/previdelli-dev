@@ -152,6 +152,17 @@ async function carregarNomeClinica(){
     estado.corPrimaria = (resp.configuracoes && resp.configuracoes.cor_primaria) || null;
     estado.graficoCorPrimaria = (resp.configuracoes && resp.configuracoes.grafico_cor_primaria) || null;
     estado.graficoTamanhoTexto = (resp.configuracoes && resp.configuracoes.grafico_tamanho_texto) || 'medio';
+    // Campos travados por papel (ex.: atendente não edita Data em lugar
+    // nenhum) — guardado como JSON string na tabela configuracoes, um
+    // array de chaves de campo por papel. Se não tiver nada salvo ainda,
+    // ou o JSON estiver corrompido, cai pra "nenhum campo travado" (não
+    // trava nada por engano se der erro de parse).
+    try{
+      estado.camposTravados.atendente = JSON.parse((resp.configuracoes && resp.configuracoes.campos_travados_atendente) || '[]');
+    }catch(e){ estado.camposTravados.atendente = []; }
+    try{
+      estado.camposTravados.profissional = JSON.parse((resp.configuracoes && resp.configuracoes.campos_travados_profissional) || '[]');
+    }catch(e){ estado.camposTravados.profissional = []; }
     if(estado.logoClinica) aplicarLogoNosSelo(estado.logoClinica);
     if(estado.corPrimaria) aplicarPaletaCor(estado.corPrimaria);
     aplicarTemaGraficos(estado.graficoCorPrimaria, estado.graficoTamanhoTexto);

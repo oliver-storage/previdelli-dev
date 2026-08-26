@@ -683,6 +683,32 @@
             (Verificar) ficaram FORA desta reorganização, a pedido do
             usuário — continuam onde estavam, editados junto com os dados
             que dependem deles.
+   v6.18.0 — Novo tipo de parâmetro (a pedido do usuário — exemplo dado:
+            "atendente não pode alterar a Data em lugar nenhum do
+            sistema"): cartão "Campos travados por papel", em
+            Configurações → Cadastros, logo após "Atendentes por
+            profissional". Matriz campo × papel (Atendente/Profissional)
+            — 13 grupos de campo (os 12 campos do formulário + Valor/Forma
+            de pagamento como um grupo só, já que são calculados juntos).
+            Trava vale em TODO lugar que usa o formulário — Lançamento
+            (novo) E o Modal de edição (Verificar/Crítica) — porque os
+            dois já reaproveitavam a mesma `definicaoCampos()`; só precisou
+            ensinar essa função a consultar a config nova
+            (`campoTravadoPorConfig`, em app-init.js). Gerente nunca é
+            afetado. Salvo em `configuracoes` (chaves
+            campos_travados_atendente/campos_travados_profissional, JSON).
+            Descoberta no processo: a trava de Data pro atendente já
+            existia, só que SÓ no Lançamento (hardcoded) — o Modal de
+            edição não tinha trava nenhuma, então dava pra driblar editando
+            o lançamento depois de criado. Essa era exatamente a brecha
+            que o pedido do usuário fechou.
+            Cuidado documentado na própria tela: travar um campo
+            OBRIGATÓRIO pra quem também cria lançamentos, sem um valor
+            padrão, pode impedir a pessoa de salvar. A Data já tem
+            preenchimento automático com o dia de hoje (herda o
+            comportamento que já existia); os outros campos obrigatórios
+            ainda não têm padrão automático — aviso amarelo no próprio
+            cartão, pra quem for configurar saber do risco antes.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
