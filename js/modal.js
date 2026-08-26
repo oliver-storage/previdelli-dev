@@ -20,8 +20,11 @@ function abrirModal(registro, camposPendentes, contexto){
   const pendentes = camposPendentes||[];
   const destacarPagamento = pendentes.includes('valor') || pendentes.includes('forma_pagamento');
   document.getElementById('grade-modal').innerHTML = definicaoCampos()
-    .map(c=>renderizarCampo(c, registro? registro[c.chave] : '', 'modal_', pendentes.includes(c.chave)))
+    .map(c=>renderizarCampo(
+      c.chave==='paciente' && registro ? Object.assign({}, c, {idAtual: registro.paciente_id}) : c,
+      registro? registro[c.chave] : '', 'modal_', pendentes.includes(c.chave)))
     .join('') + htmlSecaoFormaPagamento('modal_', destacarPagamento);
+  ligarAutocompletePaciente('modal_');
 
 
   // Pré-preenche a seção de pagamento: se o registro tem formas_pagamento
@@ -68,6 +71,7 @@ document.getElementById('form-modal').addEventListener('submit', async (ev)=>{
     return;
   }
   const registro = lerValoresCampos('modal_');
+  await resolverVinculosPacienteProfissional(registro);
   const botaoSalvar = ev.target.querySelector('button[type="submit"]');
   const rotuloOriginal = botaoSalvar.textContent;
   botaoSalvar.disabled = true;

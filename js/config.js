@@ -709,6 +709,34 @@
             comportamento que já existia); os outros campos obrigatórios
             ainda não têm padrão automático — aviso amarelo no próprio
             cartão, pra quem for configurar saber do risco antes.
+   v6.19.0 — Cadastro de Pacientes e Cadastro de Profissionais (Fase 1 de
+            um projeto maior, discutido com o usuário — Fase 2 será
+            conciliar `producao` com as tabelas de faturamento da Unimed
+            já importadas no banco: faturamento_notas/faturamento_servicos/
+            faturamento_glosas). Migração de banco feita direto no
+            Supabase (SQL rodado manualmente pelo usuário, com
+            acompanhamento): tabelas novas `pacientes` (4.986 registros) e
+            `profissionais` (31, incluindo 5 nomes que não batiam com a
+            lista oficial, criados como registros próprios a pedido do
+            usuário) — geradas a partir dos nomes já usados nos 15.507
+            lançamentos existentes. `producao` ganhou as colunas
+            paciente_id/profissional_id (FK), SEM mexer nas colunas de
+            texto que já existiam (prof/paciente continuam do jeito que
+            estavam — zero risco pro que já funciona). 100% dos 15.507
+            lançamentos ligados nos dois vínculos.
+            Configurações → Cadastros ganhou 2 cartões novos:
+            "Cadastro de Profissionais" (lista tudo, só 31) e "Cadastro de
+            Pacientes" (por busca — são ~5 mil, não lista tudo de cara).
+            Campo Paciente do Lançamento e do Modal virou autocompletar
+            (busca enquanto digita, seleciona da lista) — digitar um nome
+            novo sem selecionar CRIA o cadastro automaticamente ao salvar
+            (criarPaciente é idempotente: se o nome já existir, reaproveita
+            em vez de duplicar — testado). Profissional_id é resolvido
+            sozinho pelo nome escolhido no select, contra o cadastro
+            carregado no login (estado.profissionaisCadastro).
+            Testado: busca de paciente, reaproveitamento sem duplicar,
+            criação de paciente novo, profissional inexistente não quebra
+            o salvamento (resolve pra null com segurança).
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

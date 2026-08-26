@@ -158,6 +158,190 @@ const demo = {
     {id:'d13',prof:'DR MARCELO',data:'2026-05-12',turno:'T',paciente:'RAFAEL COSTA LIMA',protocolo:'207751615',procedimento:'RETORNO',exames:'',biopsias:'',convenio:'GEAP',valor:60,forma_pagamento:'CONVÊNIO',atendente:'GLEIDY MARA',andar:'COPARTICIPADOS',mes:'Maio',ano:2026},
     {id:'d14',prof:'DRA AMANDA USG',data:'2026-05-12',turno:'M',paciente:'CAMILA FERREIRA',protocolo:'',procedimento:'USG',exames:'MAMAS',biopsias:'',convenio:'',valor:180,forma_pagamento:'ESPÉCIE',atendente:'SOCORRO',andar:'TÉRREO',mes:'Maio',ano:2026}
   ],
+  pacientes:[
+    {
+      "id": "1c465176-7ffc-4c9f-905e-54c9cb0053d7",
+      "nome": "YSE DE QUEIROZ PONTE",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "6e749046-1c67-4de0-8d57-383c86c4b14d",
+      "nome": "LARA PAULA PESSOA ARAUJO",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "2173b541-7f66-4f88-8ceb-252ed5b13b0c",
+      "nome": "KHYO RAMON ANJOS CUNHA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "d9c7cec9-d803-4773-936d-8f7768471142",
+      "nome": "MIRYAN LIRA VIANA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "4609b29f-c874-415d-8229-93870b85ee6f",
+      "nome": "MARIA CLARA SILVA ARAUJO",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "4ffdfe09-816c-4b64-b9a7-74494875580c",
+      "nome": "FRANCISCO M G NOBRE JR",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "f328667a-e09b-4381-93cb-37ff83bef724",
+      "nome": "JOÃO PEDRO LIMA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "ef617923-d078-468d-8f6e-3cdb7f87e02c",
+      "nome": "MARIA EDUARDA COSTA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "fa99707d-eaf7-4187-9bf5-51e9f74d62a1",
+      "nome": "PEDRO HENRIQUE ALVES",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "90a67ead-ac5a-44d6-af64-867a08fab528",
+      "nome": "ANA CLARA MENDES",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "e2a3f8d0-7d16-4902-b27f-c078bb2004cf",
+      "nome": "LUCAS GABRIEL SOUZA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "5f4977a7-bb28-4216-a877-6b317ba6afc4",
+      "nome": "BEATRIZ OLIVEIRA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "71519630-5fdf-460f-a9e0-f2e8af137eec",
+      "nome": "RAFAEL COSTA LIMA",
+      "whatsapp": null,
+      "endereco": null
+    },
+    {
+      "id": "3aa75d47-e968-4e68-9ee6-50408cd4cab1",
+      "nome": "CAMILA FERREIRA",
+      "whatsapp": null,
+      "endereco": null
+    }
+  ],
+  profissionais:[
+    {
+      "id": "c1c4d801-9167-49b6-ae92-c2da06346059",
+      "nome": "ANGELINA",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "4773a63e-7c5f-4407-8279-9fd97de62c8a",
+      "nome": "LISIENE",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "05aad5fd-303d-4db8-a766-1de09eac13fd",
+      "nome": "RENATA",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "2aae43da-ffe7-4ca7-b7e2-0d1d80b19c58",
+      "nome": "DR MARCELO USG",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "b2b93f39-46a3-4090-8f93-6ddeb4098e1f",
+      "nome": "DR CHARLES USG",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "94c0f3e5-c883-480d-bbaf-cee7044ccf44",
+      "nome": "DR MAURICIO EXAMES",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "54e86d13-ebef-410b-a40f-2dc6514d7b67",
+      "nome": "DR MAURICIO",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "8f60dee6-5b6a-486a-a22f-93fb518aa0c5",
+      "nome": "GABRIELE",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "b19b7228-da39-4531-a6a7-527405e5d3bd",
+      "nome": "ISABELLE",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "64b8c58d-8bcf-41c8-b96a-da6f512ef04e",
+      "nome": "DRA RICARLA USG",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "6300caeb-24e7-4efc-ab17-a3f7cb2d9d9b",
+      "nome": "DR MARCELO",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    },
+    {
+      "id": "f182b1c0-f2e5-4200-bba4-337056a50d05",
+      "nome": "DRA AMANDA USG",
+      "telefone": null,
+      "registro_profissional": null,
+      "especialidade": null,
+      "observacoes": null
+    }
+  ],
   metas:[
     {prof:'ANGELINA', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},
     {prof:'LISIENE', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},

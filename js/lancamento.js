@@ -119,6 +119,7 @@ function montarFormularioLancamento(){
   // (cobre o caso de papel==='profissional', que já vem com o Profissional
   // fixo) e de novo toda vez que o Profissional mudar.
   aplicarTravasCondicionadasDoFormulario('campo_');
+  ligarAutocompletePaciente('campo_');
   const selProfLancamento = document.getElementById('campo_prof');
   if(selProfLancamento){
     selProfLancamento.addEventListener('change', ()=>aplicarTravasCondicionadasDoFormulario('campo_'));
@@ -136,6 +137,7 @@ document.getElementById('form-lancamento').addEventListener('submit', async (ev)
     return;
   }
   const registro = lerValoresCampos('campo_');
+  await resolverVinculosPacienteProfissional(registro);
   const resp = await api('adicionarProducao', registro);
   if(resp.ok){
     confirmacao.style.color = 'var(--teal-700)';

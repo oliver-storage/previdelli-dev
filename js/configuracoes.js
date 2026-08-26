@@ -108,7 +108,7 @@ async function atualizarConfiguracoes(){
   cartaoPermissoes.style.display = estado.papel==='gerente' ? '' : 'none';
   if(estado.papel==='gerente') await carregarPermissoes();
 
-  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados']
+  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados','cartao-cadastro-profissionais','cartao-cadastro-pacientes']
     .forEach(id => document.getElementById(id).style.display = podeVerCadastros ? '' : 'none');
   if(podeVerCadastros){
     await carregarProfissionaisAndares();
@@ -116,6 +116,8 @@ async function atualizarConfiguracoes(){
     await carregarProfissionaisExames();
     await carregarAtendentesProfissionais();
     renderizarCamposTravados(podeEditarCadastros);
+    await carregarCadastroProfissionais(podeEditarCadastros);
+    prepararCadastroPacientes(podeEditarCadastros);
   }
 
   const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
@@ -1005,4 +1007,128 @@ function prepararLogoCores(){
   });
 
   logoCoresProntos = true;
+}
+
+
+/* =====================================================================
+   CADASTRO DE PROFISSIONAIS — só 31 registros hoje, então lista tudo de
+   uma vez, sem busca. Nome vem do cadastro (não editável aqui — pra
+   corrigir nome errado, é caso a caso, avisa que precisa de SQL). O que
+   dá pra completar pela tela: telefone, registro profissional,
+   especialidade.
+===================================================================== */
+let cadastroProfissionaisCache = [];
+async function carregarCadastroProfissionais(podeEditar){
+  const tabela = document.getElementById('tabela-cadastro-profissionais');
+  tabela.innerHTML = '<tr><td class="vazio">Carregando...</td></tr>';
+  const resp = await api('listarProfissionaisCadastro', {});
+  if(!resp.ok){
+    tabela.innerHTML = `<tr><td class="vazio">${resp.erro || 'Não foi possível carregar.'}</td></tr>`;
+    return;
+  }
+  cadastroProfissionaisCache = resp.profissionais || [];
+  const desabilitado = podeEditar ? '' : 'disabled';
+  tabela.innerHTML = `
+    <thead><tr><th>Nome</th><th>Telefone</th><th>Registro profissional</th><th>Especialidade</th><th></th></tr></thead>
+    <tbody>${cadastroProfissionaisCache.map(p=>`
+      <tr data-id="${p.id}">
+        <td>${p.nome}${p.observacoes?` <span title="${p.observacoes.replace(/"/g,'&quot;')}" style="cursor:help;color:var(--gold-600);">ⓘ</span>`:''}</td>
+        <td><input type="text" class="input-prof-telefone" value="${p.telefone||''}" ${desabilitado} style="width:140px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td><input type="text" class="input-prof-registro" value="${p.registro_profissional||''}" ${desabilitado} style="width:130px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td><input type="text" class="input-prof-especialidade" value="${p.especialidade||''}" ${desabilitado} style="width:160px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td>${podeEditar?'<button class="botao secundario pequeno botao-salvar-profissional-cadastro">Salvar</button>':''}</td>
+      </tr>`).join('')}</tbody>`;
+
+  if(!podeEditar) return;
+  tabela.querySelectorAll('.botao-salvar-profissional-cadastro').forEach(botao=>{
+    botao.addEventListener('click', async (ev)=>{
+      const linha = ev.target.closest('tr');
+      const resp2 = await api('atualizarProfissionalCadastro', {
+        id: linha.dataset.id,
+        telefone: linha.querySelector('.input-prof-telefone').value,
+        registro_profissional: linha.querySelector('.input-prof-registro').value,
+        especialidade: linha.querySelector('.input-prof-especialidade').value
+      });
+      ev.target.textContent = resp2.ok ? 'Salvo ✓' : 'Erro';
+      setTimeout(()=>ev.target.textContent='Salvar', 1800);
+    });
+  });
+}
+
+
+/* =====================================================================
+   CADASTRO DE PACIENTES — ~5.000 registros, então funciona por BUSCA (não
+   lista tudo de cara). Digita o nome, mostra até 30 resultados, clica em
+   "Editar" abre os campos WhatsApp/Endereço na própria linha. Também dá
+   pra criar um paciente novo direto por aqui (fora do fluxo de
+   Lançamento), pelo botão "+ Novo paciente".
+===================================================================== */
+let cadastroPacientesPronto = false;
+function prepararCadastroPacientes(podeEditar){
+  document.getElementById('aviso-cadastro-pacientes').textContent =
+    'Digite pelo menos 2 letras do nome pra buscar (mostra até 30 resultados por vez).';
+  document.getElementById('tabela-cadastro-pacientes').innerHTML = '';
+  document.getElementById('botao-novo-paciente-cadastro').style.display = podeEditar ? 'inline-flex' : 'none';
+  if(cadastroPacientesPronto) return;
+  cadastroPacientesPronto = true;
+
+  let timeoutBusca = null;
+  document.getElementById('busca-cadastro-pacientes').addEventListener('input', (ev)=>{
+    clearTimeout(timeoutBusca);
+    const termo = ev.target.value.trim();
+    if(termo.length < 2){
+      document.getElementById('tabela-cadastro-pacientes').innerHTML = '';
+      document.getElementById('aviso-cadastro-pacientes').textContent = 'Digite pelo menos 2 letras do nome pra buscar (mostra até 30 resultados por vez).';
+      return;
+    }
+    timeoutBusca = setTimeout(()=>buscarEExibirPacientes(termo), 350); // espera parar de digitar
+  });
+
+  document.getElementById('botao-novo-paciente-cadastro').addEventListener('click', async ()=>{
+    const nome = prompt('Nome completo do novo paciente:');
+    if(!nome || !nome.trim()) return;
+    const resp = await api('criarPaciente', {nome: nome.trim()});
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível criar.'); return; }
+    document.getElementById('busca-cadastro-pacientes').value = nome.trim();
+    buscarEExibirPacientes(nome.trim());
+  });
+}
+
+async function buscarEExibirPacientes(termo){
+  const tabela = document.getElementById('tabela-cadastro-pacientes');
+  const aviso = document.getElementById('aviso-cadastro-pacientes');
+  tabela.innerHTML = '<tr><td class="vazio">Buscando...</td></tr>';
+  const resp = await api('buscarPacientes', {termo});
+  if(!resp.ok){
+    tabela.innerHTML = `<tr><td class="vazio">${resp.erro || 'Não foi possível buscar.'}</td></tr>`;
+    return;
+  }
+  const podeEditar = document.getElementById('botao-novo-paciente-cadastro').style.display !== 'none';
+  const desabilitado = podeEditar ? '' : 'disabled';
+  const pacientes = resp.pacientes || [];
+  aviso.textContent = pacientes.length===30 ? 'Mostrando os 30 primeiros — refine a busca pra achar um específico.' : `${pacientes.length} encontrado${pacientes.length===1?'':'s'}.`;
+  tabela.innerHTML = pacientes.length===0 ? '<tr><td class="vazio">Nenhum paciente encontrado com esse nome.</td></tr>' : `
+    <thead><tr><th>Nome</th><th>WhatsApp</th><th>Endereço</th><th></th></tr></thead>
+    <tbody>${pacientes.map(p=>`
+      <tr data-id="${p.id}">
+        <td>${p.nome}</td>
+        <td><input type="text" class="input-paciente-whatsapp" value="${p.whatsapp||''}" ${desabilitado} placeholder="(00) 00000-0000" style="width:150px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td><input type="text" class="input-paciente-endereco" value="${p.endereco||''}" ${desabilitado} style="width:220px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td>${podeEditar?'<button class="botao secundario pequeno botao-salvar-paciente-cadastro">Salvar</button>':''}</td>
+      </tr>`).join('')}</tbody>`;
+
+  if(!podeEditar) return;
+  tabela.querySelectorAll('.botao-salvar-paciente-cadastro').forEach(botao=>{
+    botao.addEventListener('click', async (ev)=>{
+      const linha = ev.target.closest('tr');
+      const resp2 = await api('atualizarPaciente', {
+        id: linha.dataset.id,
+        nome: linha.querySelector('td').textContent,
+        whatsapp: linha.querySelector('.input-paciente-whatsapp').value,
+        endereco: linha.querySelector('.input-paciente-endereco').value
+      });
+      ev.target.textContent = resp2.ok ? 'Salvo ✓' : 'Erro';
+      setTimeout(()=>ev.target.textContent='Salvar', 1800);
+    });
+  });
 }

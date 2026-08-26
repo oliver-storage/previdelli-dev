@@ -25,6 +25,16 @@ async function iniciarApp(){
     if(!listasResp.ok) throw new Error(listasResp.erro || 'A planilha não respondeu como esperado.');
     estado.listas = listasResp.listas || {};
 
+    // Cadastro de Pacientes/Profissionais (ver conversa de criação) — só a
+    // lista de profissionais é carregada inteira aqui (são poucos, ~30);
+    // pacientes fica só sob busca (são milhares), ver buscarPacientes.
+    // Usado pra resolver profissional_id por nome na hora de salvar um
+    // lançamento — ver resolverVinculosPacienteProfissional.
+    try{
+      const respProf = await api('listarProfissionaisCadastro', {});
+      estado.profissionaisCadastro = respProf.ok ? (respProf.profissionais||[]) : [];
+    }catch(e){ estado.profissionaisCadastro = []; }
+
 
     // Cadastro de andar/procedimento/exame/atendente por profissional (ver
     // histórico de decisões) — carregado uma vez aqui e usado pra travar/
@@ -424,7 +434,7 @@ function definicaoCampos(){
     {chave:'andar', rotulo:'Andar', tipo:'select', opcoes:L.andares, obrigatorio:true, travado: campoTravadoPorConfig('andar')},
     {chave:'data', rotulo:'Data', tipo:'date', obrigatorio:true, travado: campoTravadoPorConfig('data')},
     {chave:'turno', rotulo:'Turno', tipo:'select', opcoes:L.turnos, obrigatorio:true, travado: campoTravadoPorConfig('turno')},
-    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'text', obrigatorio:true, travado: campoTravadoPorConfig('paciente')},
+    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'autocomplete', obrigatorio:true, travado: campoTravadoPorConfig('paciente')},
     {chave:'protocolo', rotulo:'Protocolo de realização', tipo:'text', travado: campoTravadoPorConfig('protocolo')},
     {chave:'procedimento', rotulo:'Atendimento', tipo:'select', opcoes:L.procedimentos, obrigatorio:true, travado: campoTravadoPorConfig('procedimento')},
     {chave:'exames', rotulo:'Exame', tipo:'select', opcoes:L.exames, travado: campoTravadoPorConfig('exames')},
@@ -581,10 +591,81 @@ function renderizarCampo(campo, valorAtual='', prefixo='campo_', destacar=false)
   if(campo.tipo==='select'){
     const opcoes = (campo.opcoes||[]).map(o=>`<option value="${o}" ${o===valorAtual?'selected':''}>${o||'—'}</option>`).join('');
     controle = `<select id="${id}" ${campo.travado?'disabled':''}><option value="">Selecionar...</option>${opcoes}</select>`;
+  } else if(campo.tipo==='autocomplete'){
+    // Busca em tempo real no cadastro (hoje só usado pra Paciente) — o
+    // nome digitado fica no input visível, o id do cadastro (se veio de
+    // uma seleção) fica num input escondido. Ver ligarAutocompletePaciente.
+    controle = `<div style="position:relative;">
+      <input type="text" id="${id}" value="${valorAtual!==undefined?valorAtual:''}" autocomplete="off" ${campo.travado?'disabled':''}>
+      <input type="hidden" id="${id}_id" value="${campo.idAtual||''}">
+      <div id="${id}-resultados" class="autocomplete-resultados" style="display:none;position:absolute;z-index:30;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;margin-top:4px;"></div>
+    </div>`;
   } else {
     controle = `<input type="${campo.tipo}" id="${id}" value="${valorAtual!==undefined?valorAtual:''}" ${campo.travado?'disabled':''} ${campo.tipo==='number'?'step="0.01"':''}/>`;
   }
   return `<div class="campo${destacar?' campo-pendente':''}"><label>${campo.rotulo}${campo.obrigatorio?' *':''}${destacar?' <span class="tag tag-alerta" style="margin-left:4px;">preencher</span>':''}</label>${controle}</div>`;
+}
+
+
+// Liga a busca-enquanto-digita do campo Paciente (autocompletar). Chamado
+// depois que o campo já está no DOM (Lançamento e Modal). Selecionar um
+// resultado preenche o nome E guarda o id; editar o texto depois de
+// selecionado LIMPA o id (evita salvar um paciente errado se a pessoa
+// corrigir o nome na mão).
+function ligarAutocompletePaciente(prefixo){
+  const input = document.getElementById(prefixo+'paciente');
+  const inputId = document.getElementById(prefixo+'paciente_id');
+  const resultados = document.getElementById(prefixo+'paciente-resultados');
+  if(!input || input.disabled) return;
+
+  let timeoutBusca = null;
+  input.addEventListener('input', ()=>{
+    inputId.value = ''; // qualquer edição manual invalida a seleção anterior
+    clearTimeout(timeoutBusca);
+    const termo = input.value.trim();
+    if(termo.length < 2){ resultados.style.display = 'none'; return; }
+    timeoutBusca = setTimeout(async ()=>{
+      const resp = await api('buscarPacientes', {termo});
+      if(!resp.ok || !resp.pacientes || resp.pacientes.length===0){ resultados.style.display = 'none'; return; }
+      resultados.innerHTML = resp.pacientes.map(p=>
+        `<div class="autocomplete-item" data-id="${p.id}" data-nome="${p.nome.replace(/"/g,'&quot;')}" style="padding:9px 12px;cursor:pointer;font-size:13.5px;border-bottom:1px solid var(--line);">${p.nome}</div>`
+      ).join('');
+      resultados.style.display = 'block';
+      resultados.querySelectorAll('.autocomplete-item').forEach(item=>{
+        item.addEventListener('mousedown', (ev)=>{ // mousedown, não click — dispara antes do blur do input
+          ev.preventDefault();
+          input.value = item.dataset.nome;
+          inputId.value = item.dataset.id;
+          resultados.style.display = 'none';
+        });
+        item.addEventListener('mouseenter', ()=>{ item.style.background='var(--rose-100)'; });
+        item.addEventListener('mouseleave', ()=>{ item.style.background=''; });
+      });
+    }, 300);
+  });
+  input.addEventListener('blur', ()=> setTimeout(()=>{ resultados.style.display = 'none'; }, 150));
+}
+
+
+// Garante que o registro tem paciente_id e profissional_id preenchidos
+// antes de salvar — chamado logo depois de lerValoresCampos, tanto no
+// Lançamento quanto no Modal.
+// - Paciente: se já veio um id da seleção no autocompletar, usa esse. Se
+//   o nome foi digitado sem selecionar nada (paciente novo, ou alguém que
+//   não apareceu na busca), CRIA o cadastro na hora (criarPaciente é
+//   idempotente — se já existir esse nome, reaproveita em vez de duplicar).
+// - Profissional: resolve pelo nome contra o cadastro já carregado no
+//   login (estado.profissionaisCadastro) — não devia precisar criar
+//   nenhum na hora, já que a lista de profissionais vem de um select
+//   fechado, não de texto livre.
+async function resolverVinculosPacienteProfissional(registro){
+  if(!registro.paciente_id && registro.paciente && registro.paciente.trim()){
+    const resp = await api('criarPaciente', {nome: registro.paciente.trim()});
+    if(resp.ok && resp.paciente) registro.paciente_id = resp.paciente.id;
+  }
+  const prof = (estado.profissionaisCadastro||[]).find(p => p.nome.trim().toLowerCase() === String(registro.prof||'').trim().toLowerCase());
+  registro.profissional_id = prof ? prof.id : null;
+  return registro;
 }
 
 
@@ -594,6 +675,11 @@ function lerValoresCampos(prefixo='campo_'){
     const el = document.getElementById(prefixo+c.chave);
     registro[c.chave] = el ? el.value : '';
   });
+  // Paciente vem via autocompletar — o id (se veio de uma seleção da busca)
+  // fica num input escondido ao lado do nome. Ver resolverVinculoPaciente,
+  // que preenche isso pra nomes digitados sem seleção (nome novo).
+  const elPacienteId = document.getElementById(prefixo+'paciente_id');
+  registro.paciente_id = elPacienteId ? (elPacienteId.value || null) : null;
 
 
   // Valor total = soma das linhas de pagamento preenchidas. Com uma linha só,

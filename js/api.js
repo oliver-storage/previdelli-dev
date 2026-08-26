@@ -335,6 +335,68 @@ async function supabaseApi(acao, dados) {
     // Andares por profissional — cadastro (n:n) usado pra travar/filtrar o
     // campo "Andar" de acordo com o "Profissional" escolhido no Lançamento
     // e no modal de edição. Tabela pequena (poucos andares), sem paginação.
+    // ---------- PACIENTES ----------
+    case 'buscarPacientes': {
+      const termo = String(dados.termo||'').trim();
+      let query = supabaseClient.from('pacientes').select('*').order('nome').limit(30);
+      if(termo) query = query.ilike('nome', `%${termo}%`);
+      const { data, error } = await query;
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, pacientes: data||[]};
+    }
+
+    case 'obterPaciente': {
+      const { data, error } = await supabaseClient.from('pacientes').select('*').eq('id', dados.id).maybeSingle();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, paciente: data};
+    }
+
+    case 'criarPaciente': {
+      const nome = String(dados.nome||'').trim();
+      if(!nome) return {ok:false, erro:'Nome do paciente é obrigatório.'};
+      // Idempotente: se já existe um paciente com esse nome (case-insensitive),
+      // reaproveita em vez de criar duplicado — importante porque isso é
+      // chamado toda vez que um lançamento novo tem um nome digitado sem
+      // ter sido escolhido no autocompletar.
+      const existente = await supabaseClient.from('pacientes').select('*').ilike('nome', nome).maybeSingle();
+      if(existente.data) return {ok:true, paciente: existente.data};
+      const { data, error } = await supabaseClient.from('pacientes')
+        .insert({ nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null })
+        .select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, paciente: data};
+    }
+
+    case 'atualizarPaciente': {
+      const { error } = await supabaseClient.from('pacientes')
+        .update({ nome: dados.nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null })
+        .eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+    // ---------- PROFISSIONAIS (cadastro) ----------
+    case 'listarProfissionaisCadastro': {
+      const { data, error } = await supabaseClient.from('profissionais').select('*').order('nome');
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, profissionais: data||[]};
+    }
+
+    case 'criarProfissionalCadastro': {
+      const { data, error } = await supabaseClient.from('profissionais')
+        .insert({ nome: dados.nome, telefone: dados.telefone||null, registro_profissional: dados.registro_profissional||null, especialidade: dados.especialidade||null })
+        .select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, profissional: data};
+    }
+
+    case 'atualizarProfissionalCadastro': {
+      const { error } = await supabaseClient.from('profissionais')
+        .update({ telefone: dados.telefone||null, registro_profissional: dados.registro_profissional||null, especialidade: dados.especialidade||null })
+        .eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+
     case 'listarProfissionaisAndares': {
       const { data, error } = await supabaseClient.from('profissionais_andares').select('prof, andar');
       if(error) return {ok:false, erro:error.message};
@@ -647,6 +709,51 @@ function mockApi(acao, dados) {
       else demo.permissoes.push({usuario:dados.usuario, chave:dados.chave, valor:!!dados.valor});
       return {ok:true};
     }
+    // ---------- PACIENTES (demo) ----------
+    case 'buscarPacientes': {
+      const termo = String(dados.termo||'').trim().toLowerCase();
+      const encontrados = demo.pacientes
+        .filter(p => !termo || p.nome.toLowerCase().includes(termo))
+        .sort((a,b)=>a.nome.localeCompare(b.nome))
+        .slice(0,30);
+      return {ok:true, pacientes: encontrados};
+    }
+    case 'obterPaciente': {
+      const p = demo.pacientes.find(x=>x.id===dados.id);
+      return {ok:true, paciente: p||null};
+    }
+    case 'criarPaciente': {
+      const nome = String(dados.nome||'').trim();
+      if(!nome) return {ok:false, erro:'Nome do paciente é obrigatório.'};
+      const existente = demo.pacientes.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
+      if(existente) return {ok:true, paciente: existente};
+      const novo = {id: 'demo-pac-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null};
+      demo.pacientes.push(novo);
+      return {ok:true, paciente: novo};
+    }
+    case 'atualizarPaciente': {
+      const p = demo.pacientes.find(x=>x.id===dados.id);
+      if(!p) return {ok:false, erro:'Paciente não encontrado.'};
+      p.nome = dados.nome; p.whatsapp = dados.whatsapp||null; p.endereco = dados.endereco||null;
+      return {ok:true};
+    }
+
+    // ---------- PROFISSIONAIS — cadastro (demo) ----------
+    case 'listarProfissionaisCadastro': {
+      return {ok:true, profissionais: demo.profissionais.slice().sort((a,b)=>a.nome.localeCompare(b.nome))};
+    }
+    case 'criarProfissionalCadastro': {
+      const novo = {id:'demo-prof-'+Date.now(), nome:dados.nome, telefone:dados.telefone||null, registro_profissional:dados.registro_profissional||null, especialidade:dados.especialidade||null, observacoes:null};
+      demo.profissionais.push(novo);
+      return {ok:true, profissional: novo};
+    }
+    case 'atualizarProfissionalCadastro': {
+      const p = demo.profissionais.find(x=>x.id===dados.id);
+      if(!p) return {ok:false, erro:'Profissional não encontrado.'};
+      p.telefone = dados.telefone||null; p.registro_profissional = dados.registro_profissional||null; p.especialidade = dados.especialidade||null;
+      return {ok:true};
+    }
+
     case 'listarProfissionaisAndares': {
       return {ok:true, linhas: demo.profissionaisAndares.slice()};
     }
