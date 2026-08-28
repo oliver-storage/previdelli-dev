@@ -113,24 +113,113 @@
         </div>
         <button class="botao sutil pequeno botao-exportar-pdf">Exportar PDF</button>
       </div>
-      <div class="cartao">
-        <h3>Novo registro</h3>
-        <form id="form-lancamento">
-          <div class="grade-form" id="grade-lancamento"></div>
-          <div style="margin-top:20px;display:flex;gap:10px;">
-            <button type="submit" class="botao">Salvar atendimento</button>
-            <span id="confirmacao-lancamento" style="align-self:center;color:var(--teal-700);font-size:13.5px;font-weight:600;"></span>
-          </div>
-        </form>
+
+      <div class="sub-nav" id="sub-nav-lancamento">
+        <div class="sub-aba ativa" data-sub="lancamento-form">Lançamentos</div>
+        <div class="sub-aba" data-sub="lancamento-pacientes">Cadastro de Clientes</div>
+        <div class="sub-aba" data-sub="lancamento-profissionais">Cadastro de Profissionais</div>
       </div>
 
-
-      <div class="cartao">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <h3 style="margin:0;">Meus últimos lançamentos</h3>
+      <!-- ===== LANÇAMENTOS ===== -->
+      <div class="sub-painel ativa" id="lancamento-form">
+        <div class="cartao">
+          <h3>Novo registro</h3>
+          <form id="form-lancamento">
+            <div class="grade-form" id="grade-lancamento"></div>
+            <div style="margin-top:20px;display:flex;gap:10px;">
+              <button type="submit" class="botao">Salvar atendimento</button>
+              <span id="confirmacao-lancamento" style="align-self:center;color:var(--teal-700);font-size:13.5px;font-weight:600;"></span>
+            </div>
+          </form>
         </div>
-        <div class="tabela-scroll">
-          <table id="tabela-meus-lancamentos"></table>
+
+
+        <div class="cartao">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3 style="margin:0;">Meus últimos lançamentos</h3>
+          </div>
+          <div class="tabela-scroll">
+            <table id="tabela-meus-lancamentos"></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CADASTRO DE CLIENTES (Pacientes) ===== -->
+      <div class="sub-painel" id="lancamento-pacientes">
+        <div class="grade-2">
+          <div class="cartao" id="cartao-cadastro-pacientes" style="max-width:100%;">
+            <h3>Cadastro de Pacientes</h3>
+            <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+              Busque pelo nome pra ver ou completar o cadastro (WhatsApp, endereço). Os pacientes já foram
+              gerados a partir do histórico de lançamentos.
+            </p>
+            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+              <input type="text" id="busca-cadastro-pacientes" placeholder="Buscar paciente por nome..." style="flex:1;min-width:220px;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;">
+              <button class="botao secundario" id="botao-novo-paciente-cadastro">+ Novo paciente</button>
+            </div>
+            <div class="tabela-scroll">
+              <table id="tabela-cadastro-pacientes"></table>
+            </div>
+            <p id="aviso-cadastro-pacientes" style="margin:12px 0 0;color:var(--ink-400);font-size:12px;"></p>
+          </div>
+
+          <div class="cartao" id="cartao-vincular-convenio" style="max-width:100%;">
+            <h3>Vincular Convênio (Unimed)</h3>
+            <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+              Revisão manual, um por um — nada é vinculado sem você confirmar. <b id="vinculo-restantes-contador"></b>
+            </p>
+            <div id="vinculo-sem-pendentes" style="display:none;color:var(--teal-700);font-weight:600;padding:20px 0;text-align:center;">
+              ✓ Tudo revisado — nenhum beneficiário pendente.
+            </div>
+            <div id="vinculo-conteudo">
+              <div style="background:var(--rose-100);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:700;color:var(--ink-400);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">Beneficiário (Unimed)</div>
+                <div id="vinculo-nome-beneficiario" style="font-size:15px;font-weight:600;color:var(--plum-900);"></div>
+                <div id="vinculo-cartao-beneficiario" class="mono" style="font-size:13px;color:var(--ink-600);margin-top:2px;"></div>
+              </div>
+
+              <div id="vinculo-sugestoes-unimed" style="display:none;margin-bottom:16px;background:var(--gold-100);border-radius:10px;padding:12px 14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--gold-600);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;">
+                  Outros beneficiários da Unimed com nome parecido (só pra conferência — nada aqui é selecionado sozinho)
+                </div>
+                <div id="vinculo-sugestoes-lista"></div>
+              </div>
+
+              <div class="campo" style="margin-bottom:10px;">
+                <label>Buscar paciente por</label>
+                <div style="display:flex;gap:14px;font-size:13.5px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer;"><input type="radio" name="vinculo-modo-busca" value="nome" checked> Nome</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer;"><input type="radio" name="vinculo-modo-busca" value="carteirinha"> Carteirinha</label>
+                </div>
+              </div>
+              <div class="campo" style="position:relative;">
+                <input type="text" id="vinculo-busca-paciente" placeholder="Digite pra buscar..." autocomplete="off">
+                <div id="vinculo-resultados" style="display:none;position:absolute;z-index:30;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;margin-top:4px;"></div>
+              </div>
+              <div id="vinculo-selecionado" style="display:none;margin-top:10px;padding:10px 12px;background:var(--teal-100);border-radius:8px;font-size:13.5px;color:var(--teal-700);font-weight:600;"></div>
+
+              <div style="display:flex;gap:10px;margin-top:16px;">
+                <button class="botao" id="botao-confirmar-vinculo" disabled>Confirmar vínculo</button>
+                <button class="botao sutil" id="botao-pular-vinculo">Pular</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CADASTRO DE PROFISSIONAIS ===== -->
+      <div class="sub-painel" id="lancamento-profissionais">
+        <div class="cartao" id="cartao-cadastro-profissionais" style="max-width:100%;">
+          <h3>Cadastro de Profissionais</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Um registro por profissional, gerado a partir dos nomes já usados nos lançamentos — telefone,
+            registro profissional e especialidade são complementares, preencha quando tiver a informação.
+            Pra adicionar uma especialidade nova na lista (Psicólogo, Nutricionista, etc.), vá em
+            Configurações → Cadastros → "Listas do sistema" → Especialidades.
+          </p>
+          <div class="tabela-scroll">
+            <table id="tabela-cadastro-profissionais"></table>
+          </div>
         </div>
       </div>
     </section>
@@ -654,6 +743,163 @@
     </section>
 
 
+    <!-- ---------- ESTOQUE ---------- -->
+    <section class="painel" id="painel-estoque">
+      <div class="cabecalho-painel">
+        <div>
+          <h2>Estoque</h2>
+          <p>Materiais médico-hospitalares — entrada por nota fiscal, solicitação, dispensação e relatórios.</p>
+        </div>
+      </div>
+
+      <div class="sub-nav" id="sub-nav-estoque">
+        <div class="sub-aba ativa" data-sub="estoque-materiais">Cadastro</div>
+        <div class="sub-aba" data-sub="estoque-entrada">Entrada (NF)</div>
+        <div class="sub-aba" data-sub="estoque-solicitar">Solicitar</div>
+        <div class="sub-aba" data-sub="estoque-dispensar">Dispensar</div>
+        <div class="sub-aba" data-sub="estoque-dispensados">Dispensados</div>
+        <div class="sub-aba" data-sub="estoque-relatorio">Relatório</div>
+      </div>
+
+      <!-- ===== MATERIAIS (catálogo + fornecedores) ===== -->
+      <div class="sub-painel ativa" id="estoque-materiais">
+        <div class="cartao">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:16px;">
+            <h3 style="margin:0;">Fornecedores</h3>
+            <button class="botao secundario" id="botao-novo-fornecedor">+ Novo fornecedor</button>
+          </div>
+          <div class="tabela-scroll"><table id="tabela-fornecedores"></table></div>
+        </div>
+        <div class="cartao">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:16px;">
+            <h3 style="margin:0;">Catálogo de materiais</h3>
+            <button class="botao secundario" id="botao-novo-material">+ Novo material</button>
+          </div>
+          <div class="tabela-scroll"><table id="tabela-materiais"></table></div>
+        </div>
+      </div>
+
+      <!-- ===== ENTRADA POR NF ===== -->
+      <div class="sub-painel" id="estoque-entrada">
+        <div class="cartao">
+          <h3>Importar Nota Fiscal (PDF)</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Extrai o texto do PDF e tenta identificar Fornecedor (por CNPJ), Nº da NF e Data — preenche o
+            formulário abaixo automaticamente quando encontra. <b>Material, Lote, Validade e Quantidade
+            continuam manuais</b> — cada fornecedor descreve item de um jeito diferente, então não arrisco
+            adivinhar isso sozinho. O texto extraído fica visível pra você copiar o que precisar.
+          </p>
+          <input type="file" id="entrada-pdf-arquivo" accept="application/pdf">
+          <p id="entrada-pdf-status" style="margin:10px 0 0;font-size:12.5px;color:var(--ink-400);"></p>
+          <details id="entrada-pdf-texto-detalhes" style="display:none;margin-top:12px;">
+            <summary style="cursor:pointer;font-size:12.5px;color:var(--ink-600);">Ver texto extraído do PDF</summary>
+            <textarea id="entrada-pdf-texto" readonly style="width:100%;height:180px;margin-top:8px;font-family:monospace;font-size:11.5px;padding:10px;border:1.5px solid var(--line);border-radius:8px;"></textarea>
+          </details>
+        </div>
+
+        <div class="cartao">
+          <h3>Registrar entrada por Nota Fiscal</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Cada entrada vira um lote próprio, com sua validade — mesmo material pode ter vários lotes com
+            datas diferentes ao mesmo tempo.
+          </p>
+          <div class="grade-form">
+            <div class="campo"><label>Material</label><select id="entrada-material"></select></div>
+            <div class="campo"><label>Fornecedor</label><select id="entrada-fornecedor"><option value="">—</option></select></div>
+            <div class="campo"><label>Nota Fiscal</label><input type="text" id="entrada-nf"></div>
+            <div class="campo"><label>Lote</label><input type="text" id="entrada-lote"></div>
+            <div class="campo"><label>Data de entrada</label><input type="date" id="entrada-data"></div>
+            <div class="campo"><label>Validade</label><input type="date" id="entrada-validade"></div>
+            <div class="campo"><label>Quantidade</label><input type="number" id="entrada-quantidade" step="1"></div>
+            <div class="campo"><label>Valor unitário (R$)</label><input type="number" id="entrada-valor-unitario" step="0.01"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:16px;">
+            <button class="botao" id="botao-registrar-entrada">Registrar entrada</button>
+            <span id="confirmacao-entrada-estoque" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SOLICITAR ===== -->
+      <div class="sub-painel" id="estoque-solicitar">
+        <div class="cartao">
+          <h3>Solicitar material</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Vincule ao Atendimento e/ou Exame — é isso que permite separar o consumo por centro de custo depois.
+          </p>
+          <div class="grade-form">
+            <div class="campo"><label>Material</label><select id="solicitar-material"></select></div>
+            <div class="campo"><label>Profissional</label><select id="solicitar-profissional"><option value="">—</option></select></div>
+            <div class="campo"><label>Atendimento</label><select id="solicitar-procedimento"><option value="">—</option></select></div>
+            <div class="campo"><label>Exame</label><select id="solicitar-exame"><option value="">—</option></select></div>
+            <div class="campo"><label>Quantidade</label><input type="number" id="solicitar-quantidade" step="1"></div>
+            <div class="campo"><label>Observação</label><input type="text" id="solicitar-observacao"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:16px;">
+            <button class="botao" id="botao-criar-solicitacao">Enviar solicitação</button>
+            <span id="confirmacao-solicitacao-estoque" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
+          </div>
+        </div>
+        <div class="cartao">
+          <h3>Minhas solicitações pendentes</h3>
+          <div class="tabela-scroll"><table id="tabela-minhas-solicitacoes"></table></div>
+        </div>
+      </div>
+
+      <!-- ===== DISPENSAR (aprovação) ===== -->
+      <div class="sub-painel" id="estoque-dispensar">
+        <div class="cartao">
+          <h3>Solicitações pendentes</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Dispensar reserva automaticamente do lote que vence primeiro (FEFO), mas NÃO baixa o estoque ainda —
+            a baixa só ocorre quando o solicitante confirmar o recebimento (aba "Dispensados"). Se não tiver
+            estoque suficiente,
+            avisa antes de confirmar.
+          </p>
+          <div class="tabela-scroll"><table id="tabela-solicitacoes-pendentes"></table></div>
+        </div>
+      </div>
+
+      <!-- ===== DISPENSADOS (gestão + confirmação de recebimento) ===== -->
+      <div class="sub-painel" id="estoque-dispensados">
+        <div class="cartao">
+          <h3>Dispensados</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Aguardando confirmação = já foi reservado, estoque ainda não baixou. Marque os itens recebidos,
+            preencha uma observação se precisar, e confirme — só aí a baixa acontece de verdade.
+          </p>
+          <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+            <select id="dispensados-filtro-solicitante" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;"><option value="">Todos os solicitantes</option></select>
+            <select id="dispensados-filtro-status" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;">
+              <option value="aguardando">Aguardando confirmação</option>
+              <option value="confirmado">Confirmados</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+          <div class="tabela-scroll"><table id="tabela-dispensados"></table></div>
+          <div id="dispensados-acoes-confirmacao" style="display:none;margin-top:16px;padding:14px;background:var(--rose-100);border-radius:10px;">
+            <div class="campo" style="margin-bottom:10px;"><label>Observação (opcional)</label><input type="text" id="dispensados-observacao"></div>
+            <button class="botao" id="botao-confirmar-recebimento">Confirmar recebimento dos selecionados</button>
+            <span id="confirmacao-dispensados" style="margin-left:12px;font-size:13px;color:var(--teal-700);font-weight:600;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RELATÓRIO ===== -->
+      <div class="sub-painel" id="estoque-relatorio">
+        <div class="grade-kpi" id="resumo-estoque" style="margin-bottom:20px;"></div>
+        <div class="cartao">
+          <h3>Posição de estoque</h3>
+          <div class="tabela-scroll"><table id="tabela-posicao-estoque"></table></div>
+        </div>
+        <div class="cartao">
+          <h3>Vencendo nos próximos 60 dias</h3>
+          <div class="tabela-scroll"><table id="tabela-vencimentos-estoque"></table></div>
+        </div>
+      </div>
+    </section>
+
+
     <!-- ---------- CONFIGURAÇÕES ---------- -->
     <section class="painel" id="painel-configuracoes">
       <div class="cabecalho-painel">
@@ -774,35 +1020,6 @@
                 <button class="botao secundario" id="botao-salvar-campos-travados">Salvar</button>
                 <span id="confirmacao-campos-travados" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
               </div>
-            </div>
-
-
-            <div class="cartao" id="cartao-cadastro-profissionais" style="max-width:100%;">
-              <h3>Cadastro de Profissionais</h3>
-              <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
-                Um registro por profissional, gerado a partir dos nomes já usados nos lançamentos — telefone,
-                registro profissional e especialidade são complementares, preencha quando tiver a informação.
-              </p>
-              <div class="tabela-scroll">
-                <table id="tabela-cadastro-profissionais"></table>
-              </div>
-            </div>
-
-
-            <div class="cartao" id="cartao-cadastro-pacientes" style="max-width:100%;">
-              <h3>Cadastro de Pacientes</h3>
-              <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
-                Busque pelo nome pra ver ou completar o cadastro (WhatsApp, endereço). Os pacientes já foram
-                gerados a partir do histórico de lançamentos.
-              </p>
-              <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-                <input type="text" id="busca-cadastro-pacientes" placeholder="Buscar paciente por nome..." style="flex:1;min-width:220px;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;">
-                <button class="botao secundario" id="botao-novo-paciente-cadastro">+ Novo paciente</button>
-              </div>
-              <div class="tabela-scroll">
-                <table id="tabela-cadastro-pacientes"></table>
-              </div>
-              <p id="aviso-cadastro-pacientes" style="margin:12px 0 0;color:var(--ink-400);font-size:12px;"></p>
             </div>
 
 
@@ -940,7 +1157,7 @@
     </section>
   </main>
   <footer class="rodape-sistema">
-    <span>ProdClin <b id="versao-sistema">v6.19.1</b></span>
+    <span>ProdClin <b id="versao-sistema">v6.29.1</b></span>
     <span class="separador-rodape">•</span>
     <span>Desenvolvido por <b>DSP Group</b></span>
   </footer>
@@ -957,6 +1174,69 @@
         <button type="button" class="botao perigo" id="botao-excluir-modal" style="margin-right:auto;">Excluir</button>
         <button type="button" class="botao sutil" id="botao-cancelar-modal">Cancelar</button>
         <button type="submit" class="botao">Salvar alterações</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ===================== MODAL PACIENTE (novo/editar) ===================== -->
+<div class="sobreposicao" id="sobreposicao-modal-paciente">
+  <div class="modal">
+    <h3 id="titulo-modal-paciente">Novo paciente</h3>
+    <form id="form-modal-paciente">
+      <div class="grade-form">
+        <div class="campo" style="grid-column:1/-1;"><label>Nome completo *</label><input type="text" id="modal-paciente-nome" required></div>
+        <div class="campo"><label>WhatsApp</label><input type="text" id="modal-paciente-whatsapp" placeholder="(00) 00000-0000"></div>
+        <div class="campo"><label>Endereço</label><input type="text" id="modal-paciente-endereco"></div>
+        <div class="campo"><label>Convênio</label><select id="modal-paciente-convenio"><option value="">—</option></select></div>
+        <div class="campo"><label>Carteirinha</label><input type="text" id="modal-paciente-carteirinha"></div>
+        <div class="campo"><label>Data de nascimento</label><input type="date" id="modal-paciente-data-nascimento"></div>
+        <div class="campo"><label>CPF</label><input type="text" id="modal-paciente-cpf" placeholder="000.000.000-00"></div>
+      </div>
+      <div class="modal-acoes">
+        <button type="button" class="botao sutil" id="botao-cancelar-modal-paciente">Cancelar</button>
+        <button type="submit" class="botao">Salvar paciente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ===================== MODAL FORNECEDOR (novo/editar) ===================== -->
+<div class="sobreposicao" id="sobreposicao-modal-fornecedor">
+  <div class="modal">
+    <h3 id="titulo-modal-fornecedor">Novo fornecedor</h3>
+    <form id="form-modal-fornecedor">
+      <div class="grade-form">
+        <div class="campo" style="grid-column:1/-1;"><label>Nome *</label><input type="text" id="modal-fornecedor-nome" required></div>
+        <div class="campo"><label>CNPJ</label><input type="text" id="modal-fornecedor-cnpj" placeholder="00.000.000/0000-00"></div>
+        <div class="campo"><label>Contato</label><input type="text" id="modal-fornecedor-contato" placeholder="Telefone ou e-mail"></div>
+      </div>
+      <div class="modal-acoes">
+        <button type="button" class="botao sutil" id="botao-cancelar-modal-fornecedor">Cancelar</button>
+        <button type="submit" class="botao">Salvar fornecedor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ===================== MODAL MATERIAL (novo/editar) ===================== -->
+<div class="sobreposicao" id="sobreposicao-modal-material">
+  <div class="modal">
+    <h3 id="titulo-modal-material">Novo material</h3>
+    <form id="form-modal-material">
+      <div class="grade-form">
+        <div class="campo" style="grid-column:1/-1;"><label>Nome *</label><input type="text" id="modal-material-nome" required></div>
+        <div class="campo"><label>Categoria</label><input type="text" id="modal-material-categoria" placeholder="Ex.: Descartável, EPI, Curativo"></div>
+        <div class="campo"><label>Unidade</label><input type="text" id="modal-material-unidade" placeholder="unidade, caixa, par..."></div>
+        <div class="campo"><label>Estoque mínimo</label><input type="number" id="modal-material-estoque-minimo" step="1"></div>
+        <div class="campo"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="modal-material-ativo" checked style="width:auto;"> Ativo</label></div>
+      </div>
+      <div class="modal-acoes">
+        <button type="button" class="botao sutil" id="botao-cancelar-modal-material">Cancelar</button>
+        <button type="submit" class="botao">Salvar material</button>
       </div>
     </form>
   </div>
@@ -1015,6 +1295,7 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/estado.js"></script>
 <script src="js/dados-demo.js"></script>
@@ -1031,6 +1312,7 @@
 <script src="js/analises.js"></script>
 <script src="js/apresentacao.js"></script>
 <script src="js/financeiro.js"></script>
+<script src="js/estoque.js"></script>
 <script src="js/rmr-squad.js"></script>
 <!-- sessao-login.js precisa ser o ÚLTIMO: ele roda código imediatamente ao
      carregar (tenta retomar sessão salva, chamando iniciarApp()), então

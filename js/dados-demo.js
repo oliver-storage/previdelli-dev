@@ -140,7 +140,8 @@ const demo = {
     formas_pagamento:['CONVÊNIO','PIX','CARTÃO','ESPÉCIE'],
     biopsias_frascos:['','1 FRASCO','2 FRASCOS','3 FRASCOS','4 FRASCOS','5 FRASCOS','6 FRASCOS','7 FRASCOS','8 FRASCOS','9 FRASCOS'],
     andares:['TÉRREO','COPARTICIPADOS'],
-    exames:['MAMAS','ABDOME TOTAL (ABDOME SUPERIOR, RINS, BEXIGA, AORTA, VEIA CAVA INFERIOR E ADRENAIS)','ABDOME SUPERIOR (FÍGADO, VIAS BILIARES, VESÍCULA, PÂNCREAS E BAÇO)','ABDOME INFERIOR MASCULINO (BEXIGA, PRÓSTATA E VESÍCULAS SEMINAIS)','ABDOME INFERIOR FEMININO (BEXIGA, ÚTERO, OVÁRIO E ANEXOS)','DERMATOLÓGICO - PELE E SUBCUTÂNEO','ÓRGÃOS SUPERFICIAIS (TIREÓIDE OU ESCROTO OU PÊNIS OU CRÂNIO)','ARTICULAR (POR ARTICULAÇÃO)','OBSTÉTRICA','OBSTÉTRICA COM DOPPLER','OBSTÉTRICA MORFOLÓGICA','TRANSVAGINAL (ÚTERO, OVÁRIO, ANEXOS E VAGINA)','PRÓSTATA TRANSRETAL (NÃO INCLUI ABDOME INFERIOR MASCULINO)','PRÓSTATA (VIA ABDOMINAL)','APARELHO URINÁRIO (RINS, URETERES E BEXIGA)','PUNÇÃO BIÓPSIA/ASPIRATIVA DE ÓRGÃO OU ESTRUTURA SUPERFICIAL ORIENTADA POR US','COLONOSCOPIA','ENDOSCOPIA','AXILA','DOPPLER','PREPARO COLONOSCOPIA','POLIPECTOMIA DE EDA','POLIPECTOMIA DE COLON','PÉLVICA','CERVICAL','PAREDE ABDOMINAL','PARTES MOLES','MANOMETRIA','PHMETRIA','DOPPLER DE CARÓTIDAS']
+    exames:['MAMAS','ABDOME TOTAL (ABDOME SUPERIOR, RINS, BEXIGA, AORTA, VEIA CAVA INFERIOR E ADRENAIS)','ABDOME SUPERIOR (FÍGADO, VIAS BILIARES, VESÍCULA, PÂNCREAS E BAÇO)','ABDOME INFERIOR MASCULINO (BEXIGA, PRÓSTATA E VESÍCULAS SEMINAIS)','ABDOME INFERIOR FEMININO (BEXIGA, ÚTERO, OVÁRIO E ANEXOS)','DERMATOLÓGICO - PELE E SUBCUTÂNEO','ÓRGÃOS SUPERFICIAIS (TIREÓIDE OU ESCROTO OU PÊNIS OU CRÂNIO)','ARTICULAR (POR ARTICULAÇÃO)','OBSTÉTRICA','OBSTÉTRICA COM DOPPLER','OBSTÉTRICA MORFOLÓGICA','TRANSVAGINAL (ÚTERO, OVÁRIO, ANEXOS E VAGINA)','PRÓSTATA TRANSRETAL (NÃO INCLUI ABDOME INFERIOR MASCULINO)','PRÓSTATA (VIA ABDOMINAL)','APARELHO URINÁRIO (RINS, URETERES E BEXIGA)','PUNÇÃO BIÓPSIA/ASPIRATIVA DE ÓRGÃO OU ESTRUTURA SUPERFICIAL ORIENTADA POR US','COLONOSCOPIA','ENDOSCOPIA','AXILA','DOPPLER','PREPARO COLONOSCOPIA','POLIPECTOMIA DE EDA','POLIPECTOMIA DE COLON','PÉLVICA','CERVICAL','PAREDE ABDOMINAL','PARTES MOLES','MANOMETRIA','PHMETRIA','DOPPLER DE CARÓTIDAS'],
+    especialidades:['Psicólogo','Nutricionista']
   },
   producao:[
     {id:'d1',prof:'ANGELINA',data:'2026-05-04',turno:'M',paciente:'YSE DE QUEIROZ PONTE',protocolo:'206774113',procedimento:'SESSÃO',exames:'',biopsias:'',convenio:'UNIMED',valor:35,forma_pagamento:'CONVÊNIO',atendente:'KAILLANY',andar:'TÉRREO',mes:'Maio',ano:2026},
@@ -342,6 +343,30 @@ const demo = {
       "observacoes": null
     }
   ],
+  fornecedores:[
+    {id:'demo-forn-1', nome:'Cirúrgica Fernandes', cnpj:'12.345.678/0001-90', contato:'(88) 3211-0000'},
+    {id:'demo-forn-2', nome:'MedHosp Distribuidora', cnpj:'98.765.432/0001-10', contato:'(85) 3055-1122'}
+  ],
+  materiais:[
+    {id:'demo-mat-1', nome:'Seringa 10ml', categoria:'Descartável', unidade:'unidade', estoque_minimo:50, ativo:true},
+    {id:'demo-mat-2', nome:'Luva Cirúrgica (par)', categoria:'EPI', unidade:'par', estoque_minimo:100, ativo:true},
+    {id:'demo-mat-3', nome:'Gaze Estéril', categoria:'Curativo', unidade:'pacote', estoque_minimo:30, ativo:true}
+  ],
+  estoqueLotes:[
+    {id:'demo-lote-1', material_id:'demo-mat-1', fornecedor_id:'demo-forn-1', lote:'L2026A', nota_fiscal:'4521', data_entrada:'2026-06-10', validade:'2027-06-10', quantidade_entrada:200, quantidade_atual:120, valor_unitario:0.85},
+    {id:'demo-lote-2', material_id:'demo-mat-2', fornecedor_id:'demo-forn-2', lote:'L890', nota_fiscal:'7788', data_entrada:'2026-07-01', validade:'2026-09-15', quantidade_entrada:300, quantidade_atual:40, valor_unitario:1.20},
+    {id:'demo-lote-3', material_id:'demo-mat-3', fornecedor_id:'demo-forn-1', lote:'G102', nota_fiscal:'4521', data_entrada:'2026-06-10', validade:'2026-12-01', quantidade_entrada:80, quantidade_atual:65, valor_unitario:2.10}
+  ],
+  solicitacoesMaterial:[
+    {id:'demo-sol-1', material_id:'demo-mat-2', profissional_id:null, procedimento:'CIRURGIA', exame:null, quantidade:10, status:'pendente', observacao:null, solicitado_por:'DR MAURICIO', solicitado_em:new Date().toISOString()}
+  ],
+  dispensacoes:[],
+  faturamentoNotas:[
+    {cartao_beneficiario:'0123456789012345', nome_beneficiario:'MARIA CLARA SILVA ARAUJO'},
+    {cartao_beneficiario:'0123456789099999', nome_beneficiario:'JOAO PEDRO OLIVEIRA'},
+    {cartao_beneficiario:'0123456789055555', nome_beneficiario:'RAFAEL COSTA LIMA'}
+  ],
+  pacienteConvenioVinculo:[],
   metas:[
     {prof:'ANGELINA', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},
     {prof:'LISIENE', mes:'Maio', ano:2026, turnos_utilizados:2, valor_minimo_turno:294},

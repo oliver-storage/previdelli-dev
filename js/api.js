@@ -336,14 +336,257 @@ async function supabaseApi(acao, dados) {
     // campo "Andar" de acordo com o "Profissional" escolhido no Lançamento
     // e no modal de edição. Tabela pequena (poucos andares), sem paginação.
     // ---------- PACIENTES ----------
+    // ---------- ESTOQUE — Fornecedores ----------
+    case 'listarFornecedores': {
+      const { data, error } = await supabaseClient.from('fornecedores').select('*').order('nome');
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, fornecedores: data||[]};
+    }
+    case 'criarFornecedor': {
+      const { data, error } = await supabaseClient.from('fornecedores')
+        .insert({nome:dados.nome, cnpj:dados.cnpj||null, contato:dados.contato||null}).select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, fornecedor:data};
+    }
+    case 'atualizarFornecedor': {
+      const { error } = await supabaseClient.from('fornecedores')
+        .update({nome:dados.nome, cnpj:dados.cnpj||null, contato:dados.contato||null}).eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+    // ---------- ESTOQUE — Materiais (catálogo) ----------
+    case 'listarMateriais': {
+      const { data, error } = await supabaseClient.from('materiais').select('*').order('nome');
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, materiais: data||[]};
+    }
+    case 'criarMaterial': {
+      const { data, error } = await supabaseClient.from('materiais')
+        .insert({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0})
+        .select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, material:data};
+    }
+    case 'atualizarMaterial': {
+      const { error } = await supabaseClient.from('materiais')
+        .update({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:dados.ativo!==false})
+        .eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+    // ---------- ESTOQUE — Entrada por NF (cria um lote) ----------
+    case 'criarEntradaEstoque': {
+      const { data, error } = await supabaseClient.from('estoque_lotes').insert({
+        material_id: dados.material_id, fornecedor_id: dados.fornecedor_id||null,
+        lote: dados.lote||null, nota_fiscal: dados.nota_fiscal||null,
+        data_entrada: dados.data_entrada || new Date().toISOString().slice(0,10),
+        validade: dados.validade||null,
+        quantidade_entrada: Number(dados.quantidade)||0, quantidade_atual: Number(dados.quantidade)||0,
+        valor_unitario: dados.valor_unitario ? Number(dados.valor_unitario) : null
+      }).select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, lote:data};
+    }
+
+    // ---------- ESTOQUE — Posição atual (soma dos lotes vivos por material) ----------
+    case 'obterPosicaoEstoque': {
+      const [materiaisResp, lotesResp] = await Promise.all([
+        supabaseClient.from('materiais').select('*').eq('ativo', true).order('nome'),
+        supabaseClient.from('estoque_lotes').select('*').gt('quantidade_atual', 0)
+      ]);
+      if(materiaisResp.error) return {ok:false, erro:materiaisResp.error.message};
+      if(lotesResp.error) return {ok:false, erro:lotesResp.error.message};
+      return {ok:true, materiais: materiaisResp.data||[], lotes: lotesResp.data||[]};
+    }
+
+    // ---------- ESTOQUE — Solicitações ----------
+    case 'criarSolicitacaoMaterial': {
+      const { data, error } = await supabaseClient.from('solicitacoes_material').insert({
+        material_id: dados.material_id, profissional_id: dados.profissional_id||null,
+        procedimento: dados.procedimento||null, exame: dados.exame||null,
+        quantidade: Number(dados.quantidade)||0, observacao: dados.observacao||null,
+        solicitado_por: dados.solicitado_por||null
+      }).select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, solicitacao:data};
+    }
+    case 'listarSolicitacoesMaterial': {
+      let query = supabaseClient.from('solicitacoes_material').select('*, materiais(nome, unidade), profissionais(nome)').order('solicitado_em', {ascending:false});
+      if(Array.isArray(dados.status)) query = query.in('status', dados.status);
+      else if(dados.status) query = query.eq('status', dados.status);
+      if(dados.solicitado_por) query = query.eq('solicitado_por', dados.solicitado_por);
+      const { data, error } = await query;
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, solicitacoes: data||[]};
+    }
+    case 'negarSolicitacaoMaterial': {
+      const { error } = await supabaseClient.from('solicitacoes_material')
+        .update({status:'negado', observacao: dados.motivo||null}).eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+    // ---------- ESTOQUE — Dispensação (baixa FEFO — consome o lote que vence primeiro) ----------
+    case 'dispensarSolicitacao': {
+      const { data: solicitacao, error: errSol } = await supabaseClient.from('solicitacoes_material')
+        .select('*').eq('id', dados.id).maybeSingle();
+      if(errSol) return {ok:false, erro:errSol.message};
+      if(!solicitacao) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(solicitacao.status !== 'pendente') return {ok:false, erro:'Essa solicitação já foi resolvida.'};
+
+      const [{ data: lotes, error: errLotes }, { data: reservados, error: errRes }] = await Promise.all([
+        supabaseClient.from('estoque_lotes').select('*').eq('material_id', solicitacao.material_id).gt('quantidade_atual', 0)
+          .order('validade', {ascending:true, nullsFirst:false}),
+        supabaseClient.from('dispensacoes').select('lote_id, quantidade').eq('status', 'reservado')
+      ]);
+      if(errLotes) return {ok:false, erro:errLotes.message};
+      if(errRes) return {ok:false, erro:errRes.message};
+
+      const reservadoPorLote = {};
+      (reservados||[]).forEach(r=>{ reservadoPorLote[r.lote_id] = (reservadoPorLote[r.lote_id]||0) + Number(r.quantidade); });
+      const lotesComDisponivel = (lotes||[]).map(l=>({
+        ...l, disponivel: Number(l.quantidade_atual) - (reservadoPorLote[l.id]||0)
+      })).filter(l=>l.disponivel > 0);
+
+      const totalDisponivel = lotesComDisponivel.reduce((s,l)=>s+l.disponivel, 0);
+      if(totalDisponivel < Number(solicitacao.quantidade)){
+        return {ok:false, erro:`Estoque insuficiente — disponível: ${totalDisponivel}, solicitado: ${solicitacao.quantidade}.`};
+      }
+
+      // NÃO baixa o estoque aqui — só reserva (dispensacoes com status
+      // 'reservado'). A baixa de verdade só acontece quando o solicitante
+      // confirma o recebimento (ver 'confirmarRecebimentoSolicitacao').
+      let restante = Number(solicitacao.quantidade);
+      for(const lote of lotesComDisponivel){
+        if(restante<=0) break;
+        const usar = Math.min(restante, lote.disponivel);
+        const { error: errDisp } = await supabaseClient.from('dispensacoes').insert({
+          solicitacao_id: dados.id, lote_id: lote.id, quantidade: usar,
+          dispensado_por: dados.dispensado_por||null, status: 'reservado'
+        });
+        if(errDisp) return {ok:false, erro:errDisp.message};
+        restante -= usar;
+      }
+
+      const { error: errStatus } = await supabaseClient.from('solicitacoes_material')
+        .update({status:'dispensado'}).eq('id', dados.id);
+      return errStatus ? {ok:false, erro:errStatus.message} : {ok:true};
+    }
+
+    // Solicitante confirma que recebeu — SÓ AQUI a baixa de estoque
+    // acontece de fato. Marca as reservas como 'confirmado' e desconta de
+    // estoque_lotes.quantidade_atual.
+    case 'confirmarRecebimentoSolicitacao': {
+      const { data: solicitacao, error: errSol } = await supabaseClient.from('solicitacoes_material')
+        .select('*').eq('id', dados.id).maybeSingle();
+      if(errSol) return {ok:false, erro:errSol.message};
+      if(!solicitacao) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(solicitacao.status !== 'dispensado') return {ok:false, erro:'Essa solicitação não está aguardando confirmação.'};
+
+      const { data: reservas, error: errRes } = await supabaseClient.from('dispensacoes')
+        .select('*').eq('solicitacao_id', dados.id).eq('status', 'reservado');
+      if(errRes) return {ok:false, erro:errRes.message};
+
+      for(const reserva of (reservas||[])){
+        const { data: lote } = await supabaseClient.from('estoque_lotes').select('quantidade_atual').eq('id', reserva.lote_id).maybeSingle();
+        if(!lote) continue;
+        const { error: errBaixa } = await supabaseClient.from('estoque_lotes')
+          .update({quantidade_atual: Number(lote.quantidade_atual) - Number(reserva.quantidade)}).eq('id', reserva.lote_id);
+        if(errBaixa) return {ok:false, erro:errBaixa.message};
+        await supabaseClient.from('dispensacoes').update({status:'confirmado'}).eq('id', reserva.id);
+      }
+
+      const { error: errStatus } = await supabaseClient.from('solicitacoes_material').update({
+        status:'confirmado', confirmado_por: dados.confirmado_por||null,
+        confirmado_em: new Date().toISOString(), observacao_recebimento: dados.observacao||null
+      }).eq('id', dados.id);
+      return errStatus ? {ok:false, erro:errStatus.message} : {ok:true};
+    }
+
+
     case 'buscarPacientes': {
       const termo = String(dados.termo||'').trim();
+      const campo = dados.campo === 'carteirinha' ? 'carteirinha' : 'nome'; // padrão: nome
       let query = supabaseClient.from('pacientes').select('*').order('nome').limit(30);
-      if(termo) query = query.ilike('nome', `%${termo}%`);
+      if(termo) query = query.ilike(campo, `%${termo}%`);
       const { data, error } = await query;
       if(error) return {ok:false, erro:error.message};
       return {ok:true, pacientes: data||[]};
     }
+
+    // ---------- VÍNCULO PACIENTE × CONVÊNIO (Unimed) ----------
+    // Fila de revisão manual — nada aqui é automático. "Próximo pendente"
+    // pega o primeiro beneficiário do faturamento que ainda não foi
+    // confirmado NEM pulado (paciente_convenio_vinculo é o registro de
+    // "já revisado", nos dois casos).
+    // Busca só informativa — mostra beneficiários da Unimed com nome
+    // parecido, pra conferência visual (não seleciona nada sozinho).
+    case 'buscarBeneficiariosUnimedPorNome': {
+      const termo = String(dados.termo||'').trim();
+      if(termo.length < 2) return {ok:true, beneficiarios: []};
+      const { data, error } = await supabaseClient.from('faturamento_notas')
+        .select('cartao_beneficiario, nome_beneficiario')
+        .ilike('nome_beneficiario', `%${termo}%`)
+        .not('cartao_beneficiario', 'is', null)
+        .limit(60);
+      if(error) return {ok:false, erro:error.message};
+      const vistos = new Set();
+      const distintos = [];
+      (data||[]).forEach(r=>{
+        const cartao = String(r.cartao_beneficiario||'').trim();
+        if(!cartao || vistos.has(cartao)) return;
+        vistos.add(cartao);
+        distintos.push({cartao_beneficiario: cartao, nome_beneficiario: r.nome_beneficiario});
+      });
+      return {ok:true, beneficiarios: distintos.slice(0,10)};
+    }
+
+    case 'obterProximoBeneficiarioPendente': {
+      const [todosResp, revisadosResp] = await Promise.all([
+        supabaseClient.from('faturamento_notas').select('cartao_beneficiario, nome_beneficiario').not('cartao_beneficiario', 'is', null),
+        supabaseClient.from('paciente_convenio_vinculo').select('cartao_beneficiario')
+      ]);
+      if(todosResp.error) return {ok:false, erro:todosResp.error.message};
+      if(revisadosResp.error) return {ok:false, erro:revisadosResp.error.message};
+      const jaRevisados = new Set((revisadosResp.data||[]).map(r=>r.cartao_beneficiario));
+      const vistos = new Set();
+      const pendentes = [];
+      (todosResp.data||[]).forEach(r=>{
+        const cartao = String(r.cartao_beneficiario||'').trim();
+        if(!cartao || vistos.has(cartao) || jaRevisados.has(cartao)) return;
+        vistos.add(cartao);
+        pendentes.push({cartao_beneficiario: cartao, nome_beneficiario: r.nome_beneficiario});
+      });
+      return {ok:true, beneficiario: pendentes[0]||null, restantes: pendentes.length};
+    }
+
+    case 'confirmarVinculoPaciente': {
+      const { error: errVinculo } = await supabaseClient.from('paciente_convenio_vinculo').insert({
+        cartao_beneficiario: dados.cartao_beneficiario, nome_beneficiario: dados.nome_beneficiario||null,
+        paciente_id: dados.paciente_id, status: 'vinculado'
+      });
+      if(errVinculo) return {ok:false, erro:errVinculo.message};
+      // Só preenche carteirinha/convênio do paciente se ainda estiverem
+      // vazios — nunca sobrescreve o que já foi cadastrado (manual ou de
+      // uma vinculação anterior). Convênio vira "Unimed" porque é
+      // exatamente de onde esse beneficiário veio.
+      const { data: paciente } = await supabaseClient.from('pacientes').select('carteirinha, convenio').eq('id', dados.paciente_id).maybeSingle();
+      const atualizacoes = {};
+      if(paciente && (!paciente.carteirinha || !String(paciente.carteirinha).trim())) atualizacoes.carteirinha = dados.cartao_beneficiario;
+      if(paciente && (!paciente.convenio || !String(paciente.convenio).trim())) atualizacoes.convenio = 'Unimed';
+      if(Object.keys(atualizacoes).length){
+        await supabaseClient.from('pacientes').update(atualizacoes).eq('id', dados.paciente_id);
+      }
+      return {ok:true};
+    }
+
+    case 'pularBeneficiarioVinculo': {
+      const { error } = await supabaseClient.from('paciente_convenio_vinculo').insert({
+        cartao_beneficiario: dados.cartao_beneficiario, nome_beneficiario: dados.nome_beneficiario||null,
+        paciente_id: null, status: 'pulado'
+      });
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
 
     case 'obterPaciente': {
       const { data, error } = await supabaseClient.from('pacientes').select('*').eq('id', dados.id).maybeSingle();
@@ -361,7 +604,7 @@ async function supabaseApi(acao, dados) {
       const existente = await supabaseClient.from('pacientes').select('*').ilike('nome', nome).maybeSingle();
       if(existente.data) return {ok:true, paciente: existente.data};
       const { data, error } = await supabaseClient.from('pacientes')
-        .insert({ nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null })
+        .insert({ nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null, convenio: dados.convenio||null, carteirinha: dados.carteirinha||null, data_nascimento: dados.data_nascimento||null, cpf: dados.cpf||null })
         .select().single();
       if(error) return {ok:false, erro:error.message};
       return {ok:true, paciente: data};
@@ -369,7 +612,7 @@ async function supabaseApi(acao, dados) {
 
     case 'atualizarPaciente': {
       const { error } = await supabaseClient.from('pacientes')
-        .update({ nome: dados.nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null })
+        .update({ nome: dados.nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null, convenio: dados.convenio||null, carteirinha: dados.carteirinha||null, data_nascimento: dados.data_nascimento||null, cpf: dados.cpf||null })
         .eq('id', dados.id);
       return error ? {ok:false, erro:error.message} : {ok:true};
     }
@@ -712,12 +955,53 @@ function mockApi(acao, dados) {
     // ---------- PACIENTES (demo) ----------
     case 'buscarPacientes': {
       const termo = String(dados.termo||'').trim().toLowerCase();
+      const campo = dados.campo === 'carteirinha' ? 'carteirinha' : 'nome';
       const encontrados = demo.pacientes
-        .filter(p => !termo || p.nome.toLowerCase().includes(termo))
+        .filter(p => !termo || String(p[campo]||'').toLowerCase().includes(termo))
         .sort((a,b)=>a.nome.localeCompare(b.nome))
         .slice(0,30);
       return {ok:true, pacientes: encontrados};
     }
+
+    // ---------- VÍNCULO PACIENTE × CONVÊNIO (demo) ----------
+    case 'buscarBeneficiariosUnimedPorNome': {
+      const termo = String(dados.termo||'').trim().toLowerCase();
+      if(termo.length < 2) return {ok:true, beneficiarios: []};
+      const vistos = new Set();
+      const distintos = [];
+      demo.faturamentoNotas.forEach(n=>{
+        const cartao = String(n.cartao_beneficiario||'').trim();
+        if(!cartao || vistos.has(cartao)) return;
+        if(!String(n.nome_beneficiario||'').toLowerCase().includes(termo)) return;
+        vistos.add(cartao);
+        distintos.push({cartao_beneficiario: cartao, nome_beneficiario: n.nome_beneficiario});
+      });
+      return {ok:true, beneficiarios: distintos.slice(0,10)};
+    }
+    case 'obterProximoBeneficiarioPendente': {
+      const jaRevisados = new Set(demo.pacienteConvenioVinculo.map(v=>v.cartao_beneficiario));
+      const vistos = new Set();
+      const pendentes = [];
+      demo.faturamentoNotas.forEach(n=>{
+        const cartao = String(n.cartao_beneficiario||'').trim();
+        if(!cartao || vistos.has(cartao) || jaRevisados.has(cartao)) return;
+        vistos.add(cartao);
+        pendentes.push({cartao_beneficiario: cartao, nome_beneficiario: n.nome_beneficiario});
+      });
+      return {ok:true, beneficiario: pendentes[0]||null, restantes: pendentes.length};
+    }
+    case 'confirmarVinculoPaciente': {
+      demo.pacienteConvenioVinculo.push({cartao_beneficiario: dados.cartao_beneficiario, nome_beneficiario: dados.nome_beneficiario||null, paciente_id: dados.paciente_id, status:'vinculado'});
+      const p = demo.pacientes.find(x=>x.id===dados.paciente_id);
+      if(p && !p.carteirinha) p.carteirinha = dados.cartao_beneficiario;
+      if(p && !p.convenio) p.convenio = 'Unimed';
+      return {ok:true};
+    }
+    case 'pularBeneficiarioVinculo': {
+      demo.pacienteConvenioVinculo.push({cartao_beneficiario: dados.cartao_beneficiario, nome_beneficiario: dados.nome_beneficiario||null, paciente_id: null, status:'pulado'});
+      return {ok:true};
+    }
+
     case 'obterPaciente': {
       const p = demo.pacientes.find(x=>x.id===dados.id);
       return {ok:true, paciente: p||null};
@@ -727,7 +1011,7 @@ function mockApi(acao, dados) {
       if(!nome) return {ok:false, erro:'Nome do paciente é obrigatório.'};
       const existente = demo.pacientes.find(p=>p.nome.toLowerCase()===nome.toLowerCase());
       if(existente) return {ok:true, paciente: existente};
-      const novo = {id: 'demo-pac-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null};
+      const novo = {id: 'demo-pac-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), nome, whatsapp: dados.whatsapp||null, endereco: dados.endereco||null, convenio: dados.convenio||null, carteirinha: dados.carteirinha||null, data_nascimento: dados.data_nascimento||null, cpf: dados.cpf||null};
       demo.pacientes.push(novo);
       return {ok:true, paciente: novo};
     }
@@ -735,6 +1019,118 @@ function mockApi(acao, dados) {
       const p = demo.pacientes.find(x=>x.id===dados.id);
       if(!p) return {ok:false, erro:'Paciente não encontrado.'};
       p.nome = dados.nome; p.whatsapp = dados.whatsapp||null; p.endereco = dados.endereco||null;
+      p.convenio = dados.convenio||null; p.carteirinha = dados.carteirinha||null; p.data_nascimento = dados.data_nascimento||null;
+      p.cpf = dados.cpf||null;
+      return {ok:true};
+    }
+
+    // ---------- ESTOQUE (demo) ----------
+    case 'listarFornecedores': return {ok:true, fornecedores: demo.fornecedores.slice().sort((a,b)=>a.nome.localeCompare(b.nome))};
+    case 'criarFornecedor': {
+      const novo = {id:'demo-forn-'+Date.now(), nome:dados.nome, cnpj:dados.cnpj||null, contato:dados.contato||null};
+      demo.fornecedores.push(novo);
+      return {ok:true, fornecedor:novo};
+    }
+    case 'atualizarFornecedor': {
+      const f = demo.fornecedores.find(x=>x.id===dados.id);
+      if(!f) return {ok:false, erro:'Fornecedor não encontrado.'};
+      f.nome=dados.nome; f.cnpj=dados.cnpj||null; f.contato=dados.contato||null;
+      return {ok:true};
+    }
+    case 'listarMateriais': return {ok:true, materiais: demo.materiais.slice().sort((a,b)=>a.nome.localeCompare(b.nome))};
+    case 'criarMaterial': {
+      const novo = {id:'demo-mat-'+Date.now(), nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:true};
+      demo.materiais.push(novo);
+      return {ok:true, material:novo};
+    }
+    case 'atualizarMaterial': {
+      const m = demo.materiais.find(x=>x.id===dados.id);
+      if(!m) return {ok:false, erro:'Material não encontrado.'};
+      m.nome=dados.nome; m.categoria=dados.categoria||null; m.unidade=dados.unidade||'unidade';
+      m.estoque_minimo=Number(dados.estoque_minimo)||0; m.ativo=dados.ativo!==false;
+      return {ok:true};
+    }
+    case 'criarEntradaEstoque': {
+      const novo = {
+        id:'demo-lote-'+Date.now(), material_id:dados.material_id, fornecedor_id:dados.fornecedor_id||null,
+        lote:dados.lote||null, nota_fiscal:dados.nota_fiscal||null,
+        data_entrada: dados.data_entrada || new Date().toISOString().slice(0,10), validade: dados.validade||null,
+        quantidade_entrada: Number(dados.quantidade)||0, quantidade_atual: Number(dados.quantidade)||0,
+        valor_unitario: dados.valor_unitario ? Number(dados.valor_unitario) : null
+      };
+      demo.estoqueLotes.push(novo);
+      return {ok:true, lote:novo};
+    }
+    case 'obterPosicaoEstoque': {
+      return {ok:true, materiais: demo.materiais.filter(m=>m.ativo).slice(), lotes: demo.estoqueLotes.filter(l=>l.quantidade_atual>0).slice()};
+    }
+    case 'criarSolicitacaoMaterial': {
+      const novo = {
+        id:'demo-sol-'+Date.now(), material_id:dados.material_id, profissional_id:dados.profissional_id||null,
+        procedimento:dados.procedimento||null, exame:dados.exame||null, quantidade:Number(dados.quantidade)||0,
+        status:'pendente', observacao:dados.observacao||null, solicitado_por:dados.solicitado_por||null,
+        solicitado_em:new Date().toISOString()
+      };
+      demo.solicitacoesMaterial.push(novo);
+      return {ok:true, solicitacao:novo};
+    }
+    case 'listarSolicitacoesMaterial': {
+      let lista = demo.solicitacoesMaterial.slice();
+      if(Array.isArray(dados.status)) lista = lista.filter(s=>dados.status.includes(s.status));
+      else if(dados.status) lista = lista.filter(s=>s.status===dados.status);
+      if(dados.solicitado_por) lista = lista.filter(s=>s.solicitado_por===dados.solicitado_por);
+      lista = lista.map(s=>({
+        ...s,
+        materiais: {nome: (demo.materiais.find(m=>m.id===s.material_id)||{}).nome, unidade: (demo.materiais.find(m=>m.id===s.material_id)||{}).unidade},
+        profissionais: {nome: (demo.profissionais.find(p=>p.id===s.profissional_id)||{}).nome}
+      })).sort((a,b)=>new Date(b.solicitado_em)-new Date(a.solicitado_em));
+      return {ok:true, solicitacoes: lista};
+    }
+    case 'negarSolicitacaoMaterial': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      s.status = 'negado'; s.observacao = dados.motivo||null;
+      return {ok:true};
+    }
+    case 'dispensarSolicitacao': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(s.status!=='pendente') return {ok:false, erro:'Essa solicitação já foi resolvida.'};
+      const reservadoPorLote = {};
+      demo.dispensacoes.filter(d=>d.status==='reservado').forEach(d=>{ reservadoPorLote[d.lote_id] = (reservadoPorLote[d.lote_id]||0) + Number(d.quantidade); });
+      const lotes = demo.estoqueLotes.filter(l=>l.material_id===s.material_id)
+        .map(l=>({...l, disponivel: Number(l.quantidade_atual) - (reservadoPorLote[l.id]||0)}))
+        .filter(l=>l.disponivel>0)
+        .sort((a,b)=>{
+          if(!a.validade) return 1; if(!b.validade) return -1;
+          return new Date(a.validade)-new Date(b.validade);
+        });
+      const totalDisponivel = lotes.reduce((sm,l)=>sm+l.disponivel,0);
+      if(totalDisponivel < Number(s.quantidade)) return {ok:false, erro:`Estoque insuficiente — disponível: ${totalDisponivel}, solicitado: ${s.quantidade}.`};
+      // Não baixa aqui — só reserva. Baixa real ocorre em confirmarRecebimentoSolicitacao.
+      let restante = Number(s.quantidade);
+      for(const lote of lotes){
+        if(restante<=0) break;
+        const usar = Math.min(restante, lote.disponivel);
+        demo.dispensacoes.push({id:'demo-disp-'+Date.now()+Math.random(), solicitacao_id:s.id, lote_id:lote.id, quantidade:usar, dispensado_por:dados.dispensado_por||null, dispensado_em:new Date().toISOString(), status:'reservado'});
+        restante -= usar;
+      }
+      s.status = 'dispensado';
+      return {ok:true};
+    }
+    case 'confirmarRecebimentoSolicitacao': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(s.status!=='dispensado') return {ok:false, erro:'Essa solicitação não está aguardando confirmação.'};
+      demo.dispensacoes.filter(d=>d.solicitacao_id===s.id && d.status==='reservado').forEach(d=>{
+        const lote = demo.estoqueLotes.find(l=>l.id===d.lote_id);
+        if(lote) lote.quantidade_atual -= Number(d.quantidade);
+        d.status = 'confirmado';
+      });
+      s.status = 'confirmado';
+      s.confirmado_por = dados.confirmado_por||null;
+      s.confirmado_em = new Date().toISOString();
+      s.observacao_recebimento = dados.observacao||null;
       return {ok:true};
     }
 
@@ -951,7 +1347,7 @@ function mockApi(acao, dados) {
       return {ok:true};
     }
     case 'adicionarItemLista': {
-      if(!demo.listas[dados.coluna]) return {ok:false, erro:'Lista desconhecida.'};
+      if(!demo.listas[dados.coluna]) demo.listas[dados.coluna] = []; // lista nova (ex.: especialidades) — cria vazia na hora, igual o Supabase faria
       const jaExiste = demo.listas[dados.coluna].some(v=>String(v).trim().toUpperCase()===String(dados.valor).trim().toUpperCase());
       if(jaExiste) return {ok:false, erro:'Esse item já existe nessa lista.'};
       demo.listas[dados.coluna].push(dados.valor);

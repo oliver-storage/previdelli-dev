@@ -742,6 +742,264 @@
             arquivos de novo (usuário relatou que o site no ar estava
             servindo um index.html antigo, com styles.css/app.js — nomes
             que o ProdClin nunca teve).
+   v6.20.0 — Módulo de Estoque (aba nova, arquivo js/estoque.js). 5
+            sub-abas: Materiais (catálogo + fornecedores) | Entrada, NF
+            (cria um lote com validade e quantidade próprias — mesmo
+            material pode ter vários lotes com datas diferentes ao mesmo
+            tempo) | Solicitar (profissional pede, vinculado a Atendimento
+            e/ou Exame — é isso que separa por centro de custo depois) |
+            Dispensar (farmácia/gerente aprova — só 2 estados,
+            pendente→dispensado/negado, sem etapa "aprovado mas não saiu"
+            solta no meio, decisão tomada com o usuário) | Relatório
+            (posição de estoque, alerta de abaixo do mínimo, vencendo nos
+            próximos 60 dias).
+            Dispensação usa FEFO (First Expire, First Out) — consome
+            primeiro o lote que vence mais cedo, sempre; se pedir mais do
+            que tem em todos os lotes somados, bloqueia com mensagem
+            clara em vez de dispensar parcial.
+            5 tabelas novas no Supabase (rodadas manualmente pelo usuário,
+            com RLS ativo em todas): fornecedores, materiais,
+            estoque_lotes, solicitacoes_material (FK pra profissionais,
+            criada na v6.19.0), dispensacoes.
+            4 permissões novas: Ver, Solicitar, Dispensar/Negar (aprovação)
+            e Editar (cadastros + entrada de NF) — separadas porque
+            solicitar e aprovar são papéis bem diferentes na prática.
+            Profissional já nasce com Ver+Solicitar por padrão (é quem
+            pede); Editar/Dispensar ficam de fora do padrão pra qualquer
+            papel, libera por Direitos e Privilégios.
+            Testado ponta a ponta: entrada por NF, solicitação, dispensa
+            com baixa FEFO correta, bloqueio de estoque insuficiente, e
+            relatório com KPIs/vencimentos — zero erros.
+   v6.20.1 — Ajuste em Estoque, a pedido do usuário: sub-aba "Materiais"
+            virou "Cadastro"; dentro dela, "Fornecedores" agora vem antes
+            de "Catálogo de materiais" (ordem invertida).
+   v6.21.0 — Cadastro de Pacientes e Cadastro de Profissionais mudaram de
+            endereço, a pedido do usuário: saíram de Configurações →
+            Cadastros e foram pra dentro da própria aba Lançamento, que
+            agora é um grupo com 3 sub-abas — Lançamentos | Cadastro de
+            Clientes | Cadastro de Profissionais (mesma lógica de
+            sub-navegação já usada em Verificação/Dashboard/Financeiro/
+            Estoque). Permissão continua a mesma de antes
+            (ver_parametros_cadastros/editar_parametros_cadastros) — só
+            mudou de tela, não de quem pode acessar.
+            Testado: as 3 sub-abas aparecem, os dois cadastros carregam
+            certinho no novo endereço, e Configurações continua
+            funcionando normal sem eles.
+   v6.21.1 — Cadastro de Pacientes: o botão "+ Novo paciente" deixou de
+            usar um `prompt()` do navegador — agora abre um modal de
+            verdade (Nome/WhatsApp/Endereço), igual ao já usado pra editar
+            atendimento. "Editar" (que antes deixava os campos editáveis
+            direto na linha da tabela) agora também abre esse mesmo modal,
+            já preenchido. Tabela ficou só de leitura, com o botão
+            "Editar" em cada linha. Modal novo em index.html
+            (#sobreposicao-modal-paciente), lógica em configuracoes.js
+            (abrirModalPaciente/fecharModalPaciente).
+            Testado: abre vazio pra criar, cria de fato, abre preenchido
+            pra editar, salva sem duplicar, e Cancelar fecha sem alterar
+            nada.
+   v6.22.0 — Cadastro de Paciente: campos novos Convênio (dropdown, mesma
+            lista de sempre) e Carteirinha (texto) no modal e na tabela de
+            busca. Requer SQL no Supabase:
+            alter table pacientes add column if not exists convenio text;
+            alter table pacientes add column if not exists carteirinha text;
+            Cadastro de Profissional: "Especialidade" deixou de ser texto
+            livre e virou dropdown — nova lista gerenciável "Especialidades"
+            em Configurações → Cadastros → Listas do sistema (mesmo padrão
+            das outras 9 listas), já com Psicólogo e Nutricionista de
+            exemplo. Card do Cadastro de Profissionais ganhou uma nota
+            explicando onde adicionar especialidades novas.
+            Corrigido de brinde: `adicionarItemLista` no modo demo/offline
+            recusava item em lista NOVA que ainda não tinha nenhum item
+            salvo (ex.: a primeira especialidade cadastrada) — só
+            acontecia no modo demo, o Supabase de verdade nunca teve esse
+            problema.
+   v6.23.0 — "Vincular Convênio (Unimed)" — cartão novo ao lado do
+            Cadastro de Pacientes (mesma tela, layout de 2 colunas),
+            resolvendo a ligação entre os 4.986 pacientes do cadastro e os
+            1.408 beneficiários distintos já importados do faturamento da
+            Unimed (faturamento_notas). Decisão tomada com o usuário
+            depois de descartar qualquer automação em massa — ele tinha
+            receio (com razão) de mesclar dado errado:
+            - REVISÃO MANUAL, um beneficiário por vez — nada é vinculado
+              sem clicar em "Confirmar vínculo". Botão só habilita depois
+              de escolher um paciente na busca.
+            - Busca por NOME ou CARTEIRINHA — a pessoa escolhe qual dos
+              dois usar pra cada beneficiário, o que funciona melhor caso
+              a caso.
+            - "Pular" também grava (não fica reaparecendo) — tanto
+              confirmar quanto pular tiram o beneficiário da fila.
+            - Confirmar só PREENCHE a carteirinha do paciente se ela
+              estiver vazia — nunca sobrescreve o que já foi cadastrado.
+            - Nenhum UPDATE em massa em lugar nenhum — tabela nova
+              `paciente_convenio_vinculo` guarda cada decisão separada do
+              cadastro de pacientes; se precisar desfazer algo, é só
+              apagar a linha do vínculo, o paciente não é tocado.
+            Requer tabela nova no Supabase:
+            create table if not exists paciente_convenio_vinculo (
+              id uuid primary key default gen_random_uuid(),
+              cartao_beneficiario text not null unique,
+              nome_beneficiario text, paciente_id uuid references pacientes(id),
+              status text not null default 'vinculado' check (status in ('vinculado','pulado')),
+              criado_em timestamptz not null default now()
+            );
+            `buscarPacientes` ganhou parâmetro `campo` (nome/carteirinha).
+            Testado ponta a ponta: fila carrega, busca nos dois modos,
+            confirmar preenche carteirinha sem sobrescrever, fila encolhe
+            a cada confirmação/pulo, nenhum paciente existente é alterado
+            sem passar por essa revisão.
+   v6.23.1 — Lançamento (e Modal de edição), a pedido do usuário: o campo
+            Paciente deixou de aceitar nome digitado sem selecionar da
+            lista. Antes, digitar um nome novo e salvar CRIAVA o paciente
+            na hora, automático — isso saiu. Agora, se o texto não veio de
+            uma seleção real no autocompletar (verificado pelo id escondido
+            junto do campo), o salvamento é bloqueado com "Paciente (nome
+            completo)" na lista de pendências, igual a qualquer outro
+            campo obrigatório vazio. Dica visível abaixo do campo:
+            "Escolha um paciente já cadastrado na lista — não digite um
+            nome novo aqui." Cadastrar paciente novo continua possível,
+            só que exclusivamente pela tela própria (Lançamento →
+            Cadastro de Clientes → "+ Novo paciente").
+            Testado: nome digitado sem selecionar bloqueia salvar E não
+            cria paciente nenhum; selecionar de verdade libera normal.
+   v6.23.2 — Ajuste no fluxo real (a pedido do usuário — paciente chega
+            pro atendimento, atendente cadastra na hora com a carteirinha
+            e segue direto): botão "+ Novo" do lado do campo Paciente, no
+            Lançamento e no Modal de edição — abre o mesmo modal de
+            Cadastro de Pacientes (Nome/WhatsApp/Endereço/Convênio/
+            Carteirinha) sem sair da tela. Ao salvar, o campo Paciente já
+            fica preenchido com quem acabou de ser cadastrado, pronto pra
+            continuar o atendimento.
+            Corrigido no processo: o modal só tinha os botões (Cancelar,
+            Salvar) funcionando depois que alguém visitava a aba "Cadastro
+            de Clientes" pelo menos uma vez — agora é ligado direto no
+            boot da aplicação (prepararModalPacienteGlobal, chamado uma
+            vez só, independente de qual aba a pessoa abre primeiro).
+            Testado: modal funciona mesmo sem nunca ter visitado Cadastro
+            de Clientes, salva de verdade com carteirinha, preenche o
+            campo do Lançamento sozinho, e libera o salvamento do
+            atendimento na sequência.
+   v6.24.0 — Cadastro de Paciente: campo novo Data de nascimento, no modal
+            (criar/editar) e na tabela de busca — mostra "dd/mm/aaaa (N
+            anos)", idade calculada na hora, não salva nada além da data.
+            Requer SQL no Supabase:
+            alter table pacientes add column if not exists data_nascimento date;
+            Testado: cálculo de idade correto, salva, reabre pra editar já
+            preenchido, aparece certinho na tabela de busca.
+   v6.25.0 — "Vincular Convênio (Unimed)": duas melhorias a pedido do
+            usuário.
+            (1) Ao digitar o NOME no campo de busca de paciente, uma caixa
+            nova mostra outros beneficiários da Unimed com nome parecido
+            (busca em faturamento_notas) — só informativo, pra conferência
+            visual, nada é selecionado sozinho. Só aparece no modo Nome
+            (não faz sentido cruzar carteirinha digitada com nome de
+            beneficiário). Endpoint novo: buscarBeneficiariosUnimedPorNome.
+            (2) Confirmar vínculo agora também preenche o Convênio do
+            paciente como "Unimed" (mesma regra da carteirinha: só se
+            estiver vazio, nunca sobrescreve o que já foi cadastrado).
+            Testado: sugestão aparece só no modo nome, some no modo
+            carteirinha, convênio preenche quando vazio e nunca sobrescreve
+            um convênio que já existia.
+   v6.25.1 — Cadastro de Paciente: campo novo CPF, no modal (criar/editar)
+            e na tabela de busca. Requer SQL no Supabase:
+            alter table pacientes add column if not exists cpf text;
+            Testado: salva, reabre pra editar já preenchido, aparece
+            certinho na tabela de busca.
+   v6.26.0 — Lançamento (e Modal de edição), a pedido do usuário: ao
+            selecionar um paciente já cadastrado, Convênio e Carteirinha
+            do lançamento são preenchidos automaticamente com o que está
+            no cadastro dele (a pessoa pode sobrescrever se esse
+            atendimento específico for diferente do de costume). Logo
+            abaixo do campo Paciente, uma linha de referência mostra Data
+            de Nascimento (com idade) e CPF — só informativo, não é salvo
+            no lançamento, é pra facilitar conferir na hora.
+            No Modal de EDIÇÃO de um lançamento já existente, o
+            comportamento é mais cuidadoso: Convênio/Carteirinha NUNCA são
+            sobrescritos ao abrir (são o valor histórico daquele
+            atendimento específico) — só a linha de Nascimento/CPF aparece,
+            buscada em segundo plano sem travar a abertura do modal.
+            Também funciona quando o paciente é cadastrado na hora pelo
+            botão "+ Novo" — usa os dados que acabaram de ser digitados.
+            Testado: seleção preenche Convênio/Carteirinha/info; edição
+            preserva os valores históricos mas mostra a info mesmo assim;
+            limpar a seleção esconde a linha de novo.
+   v6.26.1 — Estoque → Cadastro, a pedido do usuário: Fornecedores e
+            Materiais deixaram de usar edição solta na linha da tabela e
+            prompt() do navegador — agora abrem modal de verdade (mesmo
+            padrão do Cadastro de Pacientes). "+ Novo" abre vazio; "Editar"
+            (novo botão em cada linha) abre preenchido. Tabelas ficaram só
+            de leitura. Modais novos em index.html
+            (#sobreposicao-modal-fornecedor, #sobreposicao-modal-material).
+            Testado: os dois modais abrem, criam de verdade, reabrem
+            preenchidos pra editar, e salvam sem duplicar.
+   v6.27.0 — Cadastro de Pacientes ganhou permissão própria em Direitos e
+            Privilégios: "Parâmetros — Pacientes" (Ver/Editar), separada
+            do resto de "Parâmetros — Cadastros" (que continua cobrindo
+            Listas do sistema, matrizes de vínculo, Campos travados, CSV,
+            e Cadastro de Profissionais — a pedido do usuário, só
+            Pacientes saiu). Agora dá pra liberar/bloquear Pacientes sem
+            afetar Profissionais, e vice-versa.
+            Migração em 3 níveis (podeVerCadastroPacientes/
+            podeEditarCadastroPacientes, em estado.js): se ninguém mexer
+            explicitamente na permissão nova de Pacientes pra um usuário,
+            cai pro que ele já tinha em "Parâmetros — Cadastros" — que por
+            sua vez já cai pro editar_configuracoes legado. Quem já tinha
+            acesso continua tendo, sem reconfigurar nada.
+            Testado: gerente vê tudo; atendente sem nada não vê nenhum dos
+            dois; atendente legado (editar_configuracoes) continua vendo
+            os dois via fallback; liberar só Pacientes não libera
+            Profissionais de graça, e vice-versa.
+   v6.28.0 — Lançamento reorganizado, a pedido do usuário: os campos agora
+            seguem 2 blocos, nessa ordem — 1) Paciente: Paciente (com
+            botão "+ Novo"), Carteirinha, CPF, Data de nascimento,
+            Telefone/WhatsApp; 2) Profissional e atendimento: Profissional,
+            Andar, Data, Turno, Protocolo, Atendimento, Exame, Biópsia,
+            Convênio, Atendente. Mesma ordem no Modal de edição (Verificar/
+            Crítica), já que os dois reaproveitam definicaoCampos().
+            CPF/Nascimento/Telefone são só de exibição (tipo novo
+            'info-paciente') — não existem em producao, vêm do cadastro do
+            paciente selecionado, só pra conferência. Não entram no
+            registro salvo (lerValoresCampos ignora campos com
+            apenasExibicao:true) e nunca são obrigatórios.
+            Testado: ordem exata dos campos, valores iniciais corretos,
+            seleção de paciente preenche os 3 campos de exibição + Convênio/
+            Carteirinha, campos de exibição ficam fora do registro salvo, e
+            limpar a seleção volta tudo pro estado inicial.
+   v6.29.0 — 2 mudanças a pedido do usuário:
+            (1) Cadastro de Profissionais virou gerente-only FIXO — saiu
+            de "Parâmetros — Cadastros" (que não governa mais essa tela).
+            Ninguém mais consegue liberar isso por Direitos e Privilégios,
+            nem gerente pra outro papel — igual Direitos e Privilégios em
+            si já era.
+            (2) Fluxo de Dispensação virou 2 etapas: farmácia "Dispensa"
+            (reserva do lote FEFO, dispensacoes.status='reservado', SEM
+            baixar estoque) → solicitante confirma recebimento na aba nova
+            "Dispensados" (checkbox por item + observação opcional) → SÓ
+            AÍ a baixa de fato acontece (estoque_lotes.quantidade_atual
+            desconta, dispensacoes.status vira 'confirmado').
+            Aba "Dispensados" (nova, Estoque): filtros por solicitante e
+            status (Aguardando confirmação/Confirmados/Todos). Confirmar é
+            liberado pra quem solicitou aquele item (solicitado_por bate
+            com o usuário logado) OU quem tem dispensar_estoque
+            (farmácia/gerente pode confirmar em nome de alguém).
+            Cálculo de "estoque insuficiente" na hora de Dispensar agora
+            desconta reservas já feitas mas ainda não confirmadas (evita
+            duas solicitações concorrentes estourarem o mesmo lote).
+            Requer SQL: sql/09_confirmacao_recebimento.sql (novo status
+            'confirmado' em solicitacoes_material, colunas
+            confirmado_por/confirmado_em/observacao_recebimento; novo
+            status em dispensacoes: 'reservado'/'confirmado').
+            Testado: trava de Profissionais não cede nem com override
+            explícito; dispensar reserva sem baixar; confirmar baixa
+            exatamente a quantidade certa; não deixa confirmar 2x.
+   v6.29.1 — Importação de NF em PDF (Estoque → Entrada). Extrai texto via
+            pdf.js (CDN), tenta achar CNPJ (casa contra fornecedor já
+            cadastrado), Nº da NF e Data — pré-preenche esses 3 campos.
+            Material/Lote/Validade/Quantidade continuam manuais, de
+            propósito. Texto extraído fica visível pra copiar o que
+            precisar. PDF escaneado (sem texto) cai no erro tratado,
+            avisa pra preencher manual.
+            Testado: regex de CNPJ/NF/Data contra texto de exemplo — os 3
+            bateram certo.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

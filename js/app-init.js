@@ -75,6 +75,7 @@ async function iniciarApp(){
     montarNavegacao();
     preencherSelectsPeriodo();
     montarFormularioLancamento();
+    prepararModalPacienteGlobal();
     await atualizarPainelAtivo();
   }catch(e){
     mostrarErroInicializacao('Algo deu errado ao montar as telas (' + (e.message||e) + '). Tente sair e entrar de novo; se persistir, avise o suporte.');
@@ -102,10 +103,11 @@ function montarNavegacao(){
   const nav = document.getElementById('nav-abas');
   const TODAS_ABAS = [
     {id:'inicio', rotulo:'Início', chave:'ver_inicio'},
-    {id:'lancamento', rotulo:'Lançamento', chave:'ver_lancamento'},
+    {id:'lancamento', rotulo:'Lançamento', chave:['ver_lancamento','ver_parametros_cadastros','ver_parametros_pacientes']},
     {id:'verificacao', rotulo:'Verificação', chave:['ver_verificar','ver_critica']},
     {id:'dashboard', rotulo:'Dashboard', chave:['ver_rmr','ver_rmr_squad','ver_metas']},
     {id:'financeiro', rotulo:'Financeiro', chave:'ver_financeiro'},
+    {id:'estoque', rotulo:'Estoque', chave:'ver_estoque'},
     {id:'configuracoes', rotulo:'Configurações', chave:'ver_configuracoes'}
   ];
   // `chave` pode ser uma chave só, ou uma lista — nesse caso a aba aparece se
@@ -207,11 +209,12 @@ async function trocarAba(idAba){
 
 async function atualizarPainelAtivo(){
   if(estado.abaAtiva==='inicio') await atualizarInicio();
-  if(estado.abaAtiva==='lancamento') await atualizarMeusLancamentos();
+  if(estado.abaAtiva==='lancamento') await atualizarAbaLancamento();
   if(estado.abaAtiva==='verificacao') await atualizarSubAbaAtiva(estado.subAbaVerificacao);
   if(estado.abaAtiva==='configuracoes') await atualizarConfiguracoes();
   if(estado.abaAtiva==='dashboard') await atualizarSubAbaAtiva(estado.subAbaDashboard);
   if(estado.abaAtiva==='financeiro') await atualizarFinanceiro();
+  if(estado.abaAtiva==='estoque') await atualizarEstoque();
 }
 
 
@@ -429,24 +432,33 @@ function campoTravadoPorConfig(chave){
 function definicaoCampos(){
   const L = estado.listas;
   return [
+    // ===== BLOCO 1 — Paciente (identificação e conferência primeiro) =====
+    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'autocomplete', obrigatorio:true, travado: campoTravadoPorConfig('paciente')},
+    {chave:'carteirinha', rotulo:'Carteirinha', tipo:'text', travado: campoTravadoPorConfig('carteirinha')},
+    {chave:'cpf_referencia', rotulo:'CPF', tipo:'info-paciente', apenasExibicao:true},
+    {chave:'nascimento_referencia', rotulo:'Data de nascimento', tipo:'info-paciente', apenasExibicao:true},
+    {chave:'telefone_referencia', rotulo:'Telefone/WhatsApp', tipo:'info-paciente', apenasExibicao:true},
+    // ===== BLOCO 2 — Profissional, Atendimento e demais informações =====
     {chave:'prof', rotulo:'Profissional', tipo:'select', opcoes:L.profissionais, obrigatorio:true,
       travado: estado.papel==='profissional' || campoTravadoPorConfig('prof')},
     {chave:'andar', rotulo:'Andar', tipo:'select', opcoes:L.andares, obrigatorio:true, travado: campoTravadoPorConfig('andar')},
     {chave:'data', rotulo:'Data', tipo:'date', obrigatorio:true, travado: campoTravadoPorConfig('data')},
     {chave:'turno', rotulo:'Turno', tipo:'select', opcoes:L.turnos, obrigatorio:true, travado: campoTravadoPorConfig('turno')},
-    {chave:'paciente', rotulo:'Paciente (nome completo)', tipo:'autocomplete', obrigatorio:true, travado: campoTravadoPorConfig('paciente')},
     {chave:'protocolo', rotulo:'Protocolo de realização', tipo:'text', travado: campoTravadoPorConfig('protocolo')},
     {chave:'procedimento', rotulo:'Atendimento', tipo:'select', opcoes:L.procedimentos, obrigatorio:true, travado: campoTravadoPorConfig('procedimento')},
     {chave:'exames', rotulo:'Exame', tipo:'select', opcoes:L.exames, travado: campoTravadoPorConfig('exames')},
     {chave:'biopsias', rotulo:'Biópsia (frascos)', tipo:'select', opcoes:L.biopsias_frascos, travado: campoTravadoPorConfig('biopsias')},
     {chave:'convenio', rotulo:'Convênio', tipo:'select', opcoes:L.convenios, obrigatorio:true, travado: campoTravadoPorConfig('convenio')},
-    {chave:'carteirinha', rotulo:'Carteirinha', tipo:'text', travado: campoTravadoPorConfig('carteirinha')},
     {chave:'atendente', rotulo:'Atendente', tipo:'select', opcoes:L.atendentes, obrigatorio:true, travado: campoTravadoPorConfig('atendente')}
     // "valor" e "forma_pagamento" saíram daqui — agora são calculados a partir
     // da seção de "Forma de pagamento" (que suporta pagamento dividido em mais
     // de uma forma). Ver htmlSecaoFormaPagamento / lerLinhasPagamento abaixo.
     // Essas duas também são travadas por config, mas em outro lugar — ver
     // htmlSecaoFormaPagamento e a trava de "valor"/"forma_pagamento" nela.
+    // "cpf_referencia"/"nascimento_referencia"/"telefone_referencia" são só
+    // exibição (apenasExibicao:true) — não são colunas de producao, vêm do
+    // cadastro do paciente selecionado, pra conferência. Ver
+    // preencherCamposDerivadosPaciente, que popula esses 3 campos.
   ];
 }
 
@@ -566,6 +578,13 @@ function camposObrigatoriosFaltando(prefixo){
   const faltando = definicaoCampos()
     .filter(c => c.obrigatorio)
     .filter(c => {
+      // Paciente (autocompletar) — não basta ter texto digitado, precisa
+      // ter vindo de uma seleção de verdade na lista (ver pedido do
+      // usuário: nada de criar paciente novo só digitando o nome aqui).
+      if(c.tipo === 'autocomplete'){
+        const elId = document.getElementById(prefixo+c.chave+'_id');
+        return !elId || !elId.value;
+      }
       const el = document.getElementById(prefixo+c.chave);
       return !el || String(el.value||'').trim()==='';
     })
@@ -595,11 +614,26 @@ function renderizarCampo(campo, valorAtual='', prefixo='campo_', destacar=false)
     // Busca em tempo real no cadastro (hoje só usado pra Paciente) — o
     // nome digitado fica no input visível, o id do cadastro (se veio de
     // uma seleção) fica num input escondido. Ver ligarAutocompletePaciente.
-    controle = `<div style="position:relative;">
-      <input type="text" id="${id}" value="${valorAtual!==undefined?valorAtual:''}" autocomplete="off" ${campo.travado?'disabled':''}>
-      <input type="hidden" id="${id}_id" value="${campo.idAtual||''}">
-      <div id="${id}-resultados" class="autocomplete-resultados" style="display:none;position:absolute;z-index:30;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;margin-top:4px;"></div>
+    // Só aceita quem já está cadastrado — não cria paciente novo digitando
+    // (ver camposObrigatoriosFaltando, que bloqueia salvar sem seleção).
+    // Pra paciente que chega na hora sem cadastro ainda, o botão "+ Novo"
+    // abre o mesmo modal de Cadastro de Pacientes sem sair da tela — ao
+    // salvar, volta e já preenche esse campo com quem acabou de cadastrar.
+    controle = `<div style="display:flex;gap:8px;align-items:flex-start;">
+      <div style="position:relative;flex:1;">
+        <input type="text" id="${id}" value="${valorAtual!==undefined?valorAtual:''}" autocomplete="off" ${campo.travado?'disabled':''}>
+        <input type="hidden" id="${id}_id" value="${campo.idAtual||''}">
+        <div id="${id}-resultados" class="autocomplete-resultados" style="display:none;position:absolute;z-index:30;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto;margin-top:4px;"></div>
+        ${campo.travado?'':'<div style="font-size:11px;color:var(--ink-400);margin-top:4px;">Digite pra buscar quem já está cadastrado, ou clique em "+ Novo" ao lado.</div>'}
+      </div>
+      ${campo.travado?'':`<button type="button" class="botao sutil pequeno botao-novo-paciente-rapido" data-alvo="${id}" style="white-space:nowrap;">+ Novo</button>`}
     </div>`;
+  } else if(campo.tipo==='info-paciente'){
+    // Campo só de exibição (CPF, Data de nascimento, Telefone/WhatsApp) —
+    // não existe na tabela producao, vem do cadastro do paciente
+    // selecionado, só pra conferência na hora do atendimento. Preenchido
+    // por preencherCamposDerivadosPaciente, nunca digitado pela pessoa.
+    controle = `<input type="text" id="${id}" value="—" disabled style="background:var(--rose-100);color:var(--ink-600);font-weight:500;">`;
   } else {
     controle = `<input type="${campo.tipo}" id="${id}" value="${valorAtual!==undefined?valorAtual:''}" ${campo.travado?'disabled':''} ${campo.tipo==='number'?'step="0.01"':''}/>`;
   }
@@ -612,6 +646,34 @@ function renderizarCampo(campo, valorAtual='', prefixo='campo_', destacar=false)
 // resultado preenche o nome E guarda o id; editar o texto depois de
 // selecionado LIMPA o id (evita salvar um paciente errado se a pessoa
 // corrigir o nome na mão).
+// Preenche o que dá pra puxar do cadastro do paciente assim que ele é
+// selecionado: Convênio e Carteirinha (campos de verdade do lançamento,
+// a pessoa pode sobrescrever se esse atendimento específico for
+// diferente) + uma linha de referência com Data de Nascimento e CPF (só
+// informativo, não é salvo no lançamento — o dado mora no cadastro do
+// paciente, aqui é só pra facilitar conferir na hora).
+function preencherCamposDerivadosPaciente(prefixo, paciente, opcoes){
+  const sobrescrever = !opcoes || opcoes.sobrescreverConvenioCarteirinha !== false;
+  const elConvenio = document.getElementById(prefixo+'convenio');
+  const elCarteirinha = document.getElementById(prefixo+'carteirinha');
+  const elCpf = document.getElementById(prefixo+'cpf_referencia');
+  const elNascimento = document.getElementById(prefixo+'nascimento_referencia');
+  const elTelefone = document.getElementById(prefixo+'telefone_referencia');
+  if(!paciente){
+    if(elCpf) elCpf.value = '—';
+    if(elNascimento) elNascimento.value = '—';
+    if(elTelefone) elTelefone.value = '—';
+    return;
+  }
+  if(sobrescrever){
+    if(elConvenio && paciente.convenio) elConvenio.value = paciente.convenio;
+    if(elCarteirinha && paciente.carteirinha) elCarteirinha.value = paciente.carteirinha;
+  }
+  if(elCpf) elCpf.value = paciente.cpf || '—';
+  if(elNascimento) elNascimento.value = paciente.data_nascimento ? formatarNascimentoComIdade(paciente.data_nascimento) : '—';
+  if(elTelefone) elTelefone.value = paciente.whatsapp || '—';
+}
+
 function ligarAutocompletePaciente(prefixo){
   const input = document.getElementById(prefixo+'paciente');
   const inputId = document.getElementById(prefixo+'paciente_id');
@@ -619,14 +681,18 @@ function ligarAutocompletePaciente(prefixo){
   if(!input || input.disabled) return;
 
   let timeoutBusca = null;
+  let cachePacientesBusca = {}; // id -> objeto completo, pra achar depois de clicar
   input.addEventListener('input', ()=>{
     inputId.value = ''; // qualquer edição manual invalida a seleção anterior
+    preencherCamposDerivadosPaciente(prefixo, null);
     clearTimeout(timeoutBusca);
     const termo = input.value.trim();
     if(termo.length < 2){ resultados.style.display = 'none'; return; }
     timeoutBusca = setTimeout(async ()=>{
       const resp = await api('buscarPacientes', {termo});
       if(!resp.ok || !resp.pacientes || resp.pacientes.length===0){ resultados.style.display = 'none'; return; }
+      cachePacientesBusca = {};
+      resp.pacientes.forEach(p=>{ cachePacientesBusca[p.id] = p; });
       resultados.innerHTML = resp.pacientes.map(p=>
         `<div class="autocomplete-item" data-id="${p.id}" data-nome="${p.nome.replace(/"/g,'&quot;')}" style="padding:9px 12px;cursor:pointer;font-size:13.5px;border-bottom:1px solid var(--line);">${p.nome}</div>`
       ).join('');
@@ -637,6 +703,7 @@ function ligarAutocompletePaciente(prefixo){
           input.value = item.dataset.nome;
           inputId.value = item.dataset.id;
           resultados.style.display = 'none';
+          preencherCamposDerivadosPaciente(prefixo, cachePacientesBusca[item.dataset.id]);
         });
         item.addEventListener('mouseenter', ()=>{ item.style.background='var(--rose-100)'; });
         item.addEventListener('mouseleave', ()=>{ item.style.background=''; });
@@ -644,6 +711,17 @@ function ligarAutocompletePaciente(prefixo){
     }, 300);
   });
   input.addEventListener('blur', ()=> setTimeout(()=>{ resultados.style.display = 'none'; }, 150));
+}
+
+
+// Liga o botão "+ Novo" que aparece do lado do campo Paciente — abre o
+// mesmo modal de Cadastro de Pacientes (em configuracoes.js), sem sair da
+// tela de Lançamento/Modal. Ao salvar, o modal já preenche esse campo
+// específico com quem acabou de ser cadastrado (ver abrirModalPaciente).
+function ligarBotaoNovoPacienteRapido(prefixo){
+  const idCampo = prefixo+'paciente';
+  const botao = document.querySelector(`.botao-novo-paciente-rapido[data-alvo="${idCampo}"]`);
+  if(botao) botao.addEventListener('click', ()=> abrirModalPaciente(null, idCampo));
 }
 
 
@@ -659,10 +737,12 @@ function ligarAutocompletePaciente(prefixo){
 //   nenhum na hora, já que a lista de profissionais vem de um select
 //   fechado, não de texto livre.
 async function resolverVinculosPacienteProfissional(registro){
-  if(!registro.paciente_id && registro.paciente && registro.paciente.trim()){
-    const resp = await api('criarPaciente', {nome: registro.paciente.trim()});
-    if(resp.ok && resp.paciente) registro.paciente_id = resp.paciente.id;
-  }
+  // Paciente NÃO cria mais sozinho aqui — a validação em
+  // camposObrigatoriosFaltando já bloqueia o salvamento antes de chegar
+  // até aqui se não veio de uma seleção real da lista (pedido do
+  // usuário: nada de paciente novo só de digitar o nome no Lançamento).
+  // Cadastro de paciente novo passou a ser só pela tela própria
+  // (Lançamento → Cadastro de Clientes → "+ Novo paciente").
   const prof = (estado.profissionaisCadastro||[]).find(p => p.nome.trim().toLowerCase() === String(registro.prof||'').trim().toLowerCase());
   registro.profissional_id = prof ? prof.id : null;
   return registro;
@@ -671,7 +751,7 @@ async function resolverVinculosPacienteProfissional(registro){
 
 function lerValoresCampos(prefixo='campo_'){
   const registro = {};
-  definicaoCampos().forEach(c=>{
+  definicaoCampos().filter(c=>!c.apenasExibicao).forEach(c=>{
     const el = document.getElementById(prefixo+c.chave);
     registro[c.chave] = el ? el.value : '';
   });

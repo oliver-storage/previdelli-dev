@@ -24,7 +24,8 @@ const DEFINICAO_LISTAS_CONFIG = [
   {chave:'turnos', rotulo:'Turnos'},
   {chave:'formas_pagamento', rotulo:'Formas de pagamento'},
   {chave:'biopsias_frascos', rotulo:'Biópsia (frascos)'},
-  {chave:'exames', rotulo:'Exames'}
+  {chave:'exames', rotulo:'Exames'},
+  {chave:'especialidades', rotulo:'Especialidades (profissionais)'}
 ];
 let listaConfigSelectPronto = false;
 
@@ -108,7 +109,7 @@ async function atualizarConfiguracoes(){
   cartaoPermissoes.style.display = estado.papel==='gerente' ? '' : 'none';
   if(estado.papel==='gerente') await carregarPermissoes();
 
-  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados','cartao-cadastro-profissionais','cartao-cadastro-pacientes']
+  ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados']
     .forEach(id => document.getElementById(id).style.display = podeVerCadastros ? '' : 'none');
   if(podeVerCadastros){
     await carregarProfissionaisAndares();
@@ -116,8 +117,6 @@ async function atualizarConfiguracoes(){
     await carregarProfissionaisExames();
     await carregarAtendentesProfissionais();
     renderizarCamposTravados(podeEditarCadastros);
-    await carregarCadastroProfissionais(podeEditarCadastros);
-    prepararCadastroPacientes(podeEditarCadastros);
   }
 
   const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
@@ -1035,7 +1034,10 @@ async function carregarCadastroProfissionais(podeEditar){
         <td>${p.nome}${p.observacoes?` <span title="${p.observacoes.replace(/"/g,'&quot;')}" style="cursor:help;color:var(--gold-600);">ⓘ</span>`:''}</td>
         <td><input type="text" class="input-prof-telefone" value="${p.telefone||''}" ${desabilitado} style="width:140px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
         <td><input type="text" class="input-prof-registro" value="${p.registro_profissional||''}" ${desabilitado} style="width:130px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
-        <td><input type="text" class="input-prof-especialidade" value="${p.especialidade||''}" ${desabilitado} style="width:160px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+        <td><select class="input-prof-especialidade" ${desabilitado} style="width:170px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">
+          <option value="">—</option>
+          ${(estado.listas.especialidades||[]).map(e=>`<option ${e===p.especialidade?'selected':''}>${e}</option>`).join('')}
+        </select></td>
         <td>${podeEditar?'<button class="botao secundario pequeno botao-salvar-profissional-cadastro">Salvar</button>':''}</td>
       </tr>`).join('')}</tbody>`;
 
@@ -1059,12 +1061,31 @@ async function carregarCadastroProfissionais(podeEditar){
 /* =====================================================================
    CADASTRO DE PACIENTES — ~5.000 registros, então funciona por BUSCA (não
    lista tudo de cara). Digita o nome, mostra até 30 resultados, clica em
-   "Editar" abre os campos WhatsApp/Endereço na própria linha. Também dá
-   pra criar um paciente novo direto por aqui (fora do fluxo de
-   Lançamento), pelo botão "+ Novo paciente".
+   "Editar" abre um modal (igual ao de editar atendimento) com Nome/WhatsApp/
+   Endereço. "+ Novo paciente" abre o mesmo modal, vazio.
 ===================================================================== */
+// Formata "dd/mm/aaaa (idade anos)" a partir de uma data ISO (yyyy-mm-dd)
+// — usado só pra exibir na tabela de busca, não mexe no que é salvo.
+function formatarNascimentoComIdade(dataIso){
+  if(!dataIso) return '—';
+  const [ano, mes, dia] = dataIso.split('-').map(Number);
+  if(!ano || !mes || !dia) return '—';
+  const nascimento = new Date(ano, mes-1, dia);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - ano;
+  const aindaNaoFezAniversario = (hoje.getMonth()+1 < mes) || (hoje.getMonth()+1===mes && hoje.getDate() < dia);
+  if(aindaNaoFezAniversario) idade--;
+  const dataFormatada = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
+  return `${dataFormatada} (${idade} anos)`;
+}
+
 let cadastroPacientesPronto = false;
+let pacienteEmEdicaoId = null; // null = criando um novo; senão, id de quem está sendo editado
+let pacienteModalAlvoPreenchimento = null; // id do campo (ex.: 'campo_paciente') pra preencher depois de salvar, quando aberto pelo botão "+ Novo" do Lançamento
+let cadastroPacientesCacheBusca = []; // últimos resultados da busca, pra achar o registro completo ao clicar Editar
+
 function prepararCadastroPacientes(podeEditar){
+  prepararVinculoConvenio(podeEditar);
   document.getElementById('aviso-cadastro-pacientes').textContent =
     'Digite pelo menos 2 letras do nome pra buscar (mostra até 30 resultados por vez).';
   document.getElementById('tabela-cadastro-pacientes').innerHTML = '';
@@ -1084,14 +1105,86 @@ function prepararCadastroPacientes(podeEditar){
     timeoutBusca = setTimeout(()=>buscarEExibirPacientes(termo), 350); // espera parar de digitar
   });
 
-  document.getElementById('botao-novo-paciente-cadastro').addEventListener('click', async ()=>{
-    const nome = prompt('Nome completo do novo paciente:');
-    if(!nome || !nome.trim()) return;
-    const resp = await api('criarPaciente', {nome: nome.trim()});
-    if(!resp.ok){ alert(resp.erro || 'Não foi possível criar.'); return; }
-    document.getElementById('busca-cadastro-pacientes').value = nome.trim();
-    buscarEExibirPacientes(nome.trim());
+  document.getElementById('botao-novo-paciente-cadastro').addEventListener('click', ()=>abrirModalPaciente(null));
+}
+
+// Liga os botões do MODAL de paciente em si (Cancelar, clicar fora,
+// Salvar) — separado de prepararCadastroPacientes de propósito, porque
+// esse modal também é aberto pelo botão "+ Novo" direto do Lançamento/
+// Modal de edição, sem a pessoa nunca ter passado pela aba "Cadastro de
+// Clientes". Chamado uma vez só, no boot da aplicação (ver app-init.js),
+// pra já estar pronto não importa por onde o modal seja aberto primeiro.
+let modalPacienteGlobalPronto = false;
+function prepararModalPacienteGlobal(){
+  if(modalPacienteGlobalPronto) return;
+  modalPacienteGlobalPronto = true;
+
+  document.getElementById('botao-cancelar-modal-paciente').addEventListener('click', fecharModalPaciente);
+  document.getElementById('sobreposicao-modal-paciente').addEventListener('click', (ev)=>{
+    if(ev.target.id==='sobreposicao-modal-paciente') fecharModalPaciente();
   });
+  document.getElementById('form-modal-paciente').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const nome = document.getElementById('modal-paciente-nome').value.trim();
+    if(!nome){ alert('Preencha o nome do paciente.'); return; }
+    const botao = ev.target.querySelector('button[type="submit"]');
+    const rotuloOriginal = botao.textContent;
+    botao.disabled = true; botao.textContent = 'Salvando...';
+    const dadosPaciente = {
+      nome, whatsapp: document.getElementById('modal-paciente-whatsapp').value,
+      endereco: document.getElementById('modal-paciente-endereco').value,
+      convenio: document.getElementById('modal-paciente-convenio').value,
+      carteirinha: document.getElementById('modal-paciente-carteirinha').value,
+      data_nascimento: document.getElementById('modal-paciente-data-nascimento').value,
+      cpf: document.getElementById('modal-paciente-cpf').value
+    };
+    const resp = pacienteEmEdicaoId
+      ? await api('atualizarPaciente', Object.assign({id: pacienteEmEdicaoId}, dadosPaciente))
+      : await api('criarPaciente', dadosPaciente);
+    botao.disabled = false; botao.textContent = rotuloOriginal;
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar.'); return; }
+
+    // Aberto pelo botão "+ Novo" do Lançamento/Modal? Preenche o campo de
+    // origem com quem acabou de ser cadastrado, pra continuar o
+    // atendimento sem precisar buscar de novo — inclusive Convênio/
+    // Carteirinha/Nascimento/CPF, já que é um cadastro fresquinho.
+    if(pacienteModalAlvoPreenchimento){
+      const pacienteResultado = resp.paciente || Object.assign({id: pacienteEmEdicaoId, nome}, dadosPaciente);
+      const elCampo = document.getElementById(pacienteModalAlvoPreenchimento);
+      const elCampoId = document.getElementById(pacienteModalAlvoPreenchimento+'_id');
+      if(elCampo) elCampo.value = pacienteResultado.nome;
+      if(elCampoId) elCampoId.value = pacienteResultado.id;
+      const prefixoAlvo = pacienteModalAlvoPreenchimento.replace(/paciente$/, '');
+      preencherCamposDerivadosPaciente(prefixoAlvo, pacienteResultado);
+    }
+
+    fecharModalPaciente();
+    // Só atualiza a busca da aba Cadastro de Clientes se ela já foi usada
+    // alguma vez (senão os elementos existem mas não faz sentido mexer).
+    const buscaEl = document.getElementById('busca-cadastro-pacientes');
+    if(buscaEl){ buscaEl.value = nome; buscarEExibirPacientes(nome); }
+  });
+}
+
+function abrirModalPaciente(paciente, alvoCampoId){
+  pacienteEmEdicaoId = paciente ? paciente.id : null;
+  pacienteModalAlvoPreenchimento = alvoCampoId || null; // pra onde volta preenchido depois de salvar (ver botão "+ Novo" do Lançamento)
+  document.getElementById('titulo-modal-paciente').textContent = paciente ? 'Editar paciente' : 'Novo paciente';
+  document.getElementById('modal-paciente-nome').value = paciente ? paciente.nome : '';
+  document.getElementById('modal-paciente-whatsapp').value = paciente ? (paciente.whatsapp||'') : '';
+  document.getElementById('modal-paciente-endereco').value = paciente ? (paciente.endereco||'') : '';
+  const selConvenio = document.getElementById('modal-paciente-convenio');
+  selConvenio.innerHTML = '<option value="">—</option>' + (estado.listas.convenios||[]).map(c=>`<option>${c}</option>`).join('');
+  selConvenio.value = paciente ? (paciente.convenio||'') : '';
+  document.getElementById('modal-paciente-carteirinha').value = paciente ? (paciente.carteirinha||'') : '';
+  document.getElementById('modal-paciente-data-nascimento').value = paciente ? (paciente.data_nascimento||'') : '';
+  document.getElementById('modal-paciente-cpf').value = paciente ? (paciente.cpf||'') : '';
+  document.getElementById('sobreposicao-modal-paciente').classList.add('aberta');
+}
+function fecharModalPaciente(){
+  document.getElementById('sobreposicao-modal-paciente').classList.remove('aberta');
+  pacienteEmEdicaoId = null;
+  pacienteModalAlvoPreenchimento = null;
 }
 
 async function buscarEExibirPacientes(termo){
@@ -1104,31 +1197,172 @@ async function buscarEExibirPacientes(termo){
     return;
   }
   const podeEditar = document.getElementById('botao-novo-paciente-cadastro').style.display !== 'none';
-  const desabilitado = podeEditar ? '' : 'disabled';
   const pacientes = resp.pacientes || [];
+  cadastroPacientesCacheBusca = pacientes; // pra abrirModalPaciente achar o registro completo ao clicar Editar
   aviso.textContent = pacientes.length===30 ? 'Mostrando os 30 primeiros — refine a busca pra achar um específico.' : `${pacientes.length} encontrado${pacientes.length===1?'':'s'}.`;
   tabela.innerHTML = pacientes.length===0 ? '<tr><td class="vazio">Nenhum paciente encontrado com esse nome.</td></tr>' : `
-    <thead><tr><th>Nome</th><th>WhatsApp</th><th>Endereço</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>WhatsApp</th><th>Endereço</th><th>Convênio</th><th>Carteirinha</th><th></th></tr></thead>
     <tbody>${pacientes.map(p=>`
       <tr data-id="${p.id}">
         <td>${p.nome}</td>
-        <td><input type="text" class="input-paciente-whatsapp" value="${p.whatsapp||''}" ${desabilitado} placeholder="(00) 00000-0000" style="width:150px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
-        <td><input type="text" class="input-paciente-endereco" value="${p.endereco||''}" ${desabilitado} style="width:220px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
-        <td>${podeEditar?'<button class="botao secundario pequeno botao-salvar-paciente-cadastro">Salvar</button>':''}</td>
+        <td class="mono">${p.cpf||'—'}</td>
+        <td>${formatarNascimentoComIdade(p.data_nascimento)}</td>
+        <td>${p.whatsapp||'—'}</td>
+        <td>${p.endereco||'—'}</td>
+        <td>${p.convenio||'—'}</td>
+        <td class="mono">${p.carteirinha||'—'}</td>
+        <td>${podeEditar?`<button class="botao secundario pequeno botao-editar-paciente-cadastro" data-id="${p.id}">Editar</button>`:''}</td>
       </tr>`).join('')}</tbody>`;
 
   if(!podeEditar) return;
-  tabela.querySelectorAll('.botao-salvar-paciente-cadastro').forEach(botao=>{
-    botao.addEventListener('click', async (ev)=>{
-      const linha = ev.target.closest('tr');
-      const resp2 = await api('atualizarPaciente', {
-        id: linha.dataset.id,
-        nome: linha.querySelector('td').textContent,
-        whatsapp: linha.querySelector('.input-paciente-whatsapp').value,
-        endereco: linha.querySelector('.input-paciente-endereco').value
-      });
-      ev.target.textContent = resp2.ok ? 'Salvo ✓' : 'Erro';
-      setTimeout(()=>ev.target.textContent='Salvar', 1800);
+  tabela.querySelectorAll('.botao-editar-paciente-cadastro').forEach(botao=>{
+    botao.addEventListener('click', ()=>{
+      const paciente = cadastroPacientesCacheBusca.find(p=>p.id===botao.dataset.id);
+      if(paciente) abrirModalPaciente(paciente);
     });
   });
+}
+
+
+/* =====================================================================
+   VINCULAR CONVÊNIO (Unimed) — revisão manual, um beneficiário por vez.
+   Nada é gravado sem clicar em "Confirmar vínculo". "Pular" também grava
+   (com status='pulado'), pra não repetir o mesmo beneficiário de novo —
+   a fila sempre encolhe, nunca fica presa no mesmo item.
+===================================================================== */
+let vinculoConvenioPronto = false;
+let vinculoBeneficiarioAtual = null;
+let vinculoPacienteEscolhido = null;
+
+function prepararVinculoConvenio(podeEditar){
+  const cartaoCard = document.getElementById('cartao-vincular-convenio');
+  cartaoCard.style.display = podeEditar ? '' : 'none';
+  if(!podeEditar) return;
+
+  carregarProximoBeneficiario();
+
+  if(vinculoConvenioPronto) return;
+  vinculoConvenioPronto = true;
+
+  let timeoutBuscaVinculo = null;
+  document.getElementById('vinculo-busca-paciente').addEventListener('input', (ev)=>{
+    vinculoPacienteEscolhido = null;
+    atualizarBotaoConfirmarVinculo();
+    document.getElementById('vinculo-selecionado').style.display = 'none';
+    clearTimeout(timeoutBuscaVinculo);
+    const termo = ev.target.value.trim();
+    const resultados = document.getElementById('vinculo-resultados');
+    if(termo.length < 2){ resultados.style.display = 'none'; return; }
+    timeoutBuscaVinculo = setTimeout(async ()=>{
+      const modo = document.querySelector('input[name="vinculo-modo-busca"]:checked').value;
+      const resp = await api('buscarPacientes', {termo, campo: modo});
+      if(!resp.ok || !resp.pacientes || resp.pacientes.length===0){ resultados.style.display = 'none'; return; }
+      resultados.innerHTML = resp.pacientes.map(p=>
+        `<div class="autocomplete-item" data-id="${p.id}" data-nome="${p.nome.replace(/"/g,'&quot;')}" style="padding:9px 12px;cursor:pointer;font-size:13.5px;border-bottom:1px solid var(--line);">
+          ${p.nome}${p.carteirinha?` <span class="mono" style="color:var(--ink-400);font-size:12px;">(${p.carteirinha})</span>`:''}
+        </div>`
+      ).join('');
+      resultados.style.display = 'block';
+      resultados.querySelectorAll('.autocomplete-item').forEach(item=>{
+        item.addEventListener('mousedown', (ev2)=>{
+          ev2.preventDefault();
+          vinculoPacienteEscolhido = {id:item.dataset.id, nome:item.dataset.nome};
+          document.getElementById('vinculo-busca-paciente').value = item.dataset.nome;
+          document.getElementById('vinculo-selecionado').style.display = 'block';
+          document.getElementById('vinculo-selecionado').textContent = `Selecionado: ${item.dataset.nome}`;
+          resultados.style.display = 'none';
+          atualizarBotaoConfirmarVinculo();
+        });
+      });
+    }, 300);
+
+    // Sugestão da Unimed — só quando o modo de busca é por Nome (não faz
+    // sentido cruzar carteirinha digitada contra nome de beneficiário).
+    // Puramente informativo: mostra quem mais tem nome parecido lá na
+    // Unimed, pra conferência visual — não seleciona nada sozinho.
+    const modoAtual = document.querySelector('input[name="vinculo-modo-busca"]:checked').value;
+    const caixaSugestoes = document.getElementById('vinculo-sugestoes-unimed');
+    if(modoAtual !== 'nome' || termo.length < 2){
+      caixaSugestoes.style.display = 'none';
+    } else {
+      setTimeout(async ()=>{
+        const respSug = await api('buscarBeneficiariosUnimedPorNome', {termo});
+        const lista = document.getElementById('vinculo-sugestoes-lista');
+        if(!respSug.ok || !respSug.beneficiarios || respSug.beneficiarios.length===0){
+          caixaSugestoes.style.display = 'none';
+          return;
+        }
+        lista.innerHTML = respSug.beneficiarios.map(b=>
+          `<div style="font-size:13px;color:var(--ink-600);padding:3px 0;">
+            ${b.nome_beneficiario} <span class="mono" style="color:var(--ink-400);font-size:11.5px;">(${b.cartao_beneficiario})</span>
+          </div>`
+        ).join('');
+        caixaSugestoes.style.display = 'block';
+      }, 300);
+    }
+  });
+
+  document.querySelectorAll('input[name="vinculo-modo-busca"]').forEach(radio=>{
+    radio.addEventListener('change', ()=>{
+      document.getElementById('vinculo-busca-paciente').value = '';
+      vinculoPacienteEscolhido = null;
+      atualizarBotaoConfirmarVinculo();
+      document.getElementById('vinculo-sugestoes-unimed').style.display = 'none';
+    });
+  });
+
+  document.getElementById('botao-confirmar-vinculo').addEventListener('click', async ()=>{
+    if(!vinculoBeneficiarioAtual || !vinculoPacienteEscolhido) return;
+    const botao = document.getElementById('botao-confirmar-vinculo');
+    botao.disabled = true; botao.textContent = 'Salvando...';
+    const resp = await api('confirmarVinculoPaciente', {
+      cartao_beneficiario: vinculoBeneficiarioAtual.cartao_beneficiario,
+      nome_beneficiario: vinculoBeneficiarioAtual.nome_beneficiario,
+      paciente_id: vinculoPacienteEscolhido.id
+    });
+    botao.disabled = false; botao.textContent = 'Confirmar vínculo';
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível vincular.'); return; }
+    await carregarProximoBeneficiario();
+  });
+
+  document.getElementById('botao-pular-vinculo').addEventListener('click', async ()=>{
+    if(!vinculoBeneficiarioAtual) return;
+    await api('pularBeneficiarioVinculo', {
+      cartao_beneficiario: vinculoBeneficiarioAtual.cartao_beneficiario,
+      nome_beneficiario: vinculoBeneficiarioAtual.nome_beneficiario
+    });
+    await carregarProximoBeneficiario();
+  });
+}
+
+function atualizarBotaoConfirmarVinculo(){
+  document.getElementById('botao-confirmar-vinculo').disabled = !vinculoPacienteEscolhido;
+}
+
+async function carregarProximoBeneficiario(){
+  const resp = await api('obterProximoBeneficiarioPendente', {});
+  const conteudo = document.getElementById('vinculo-conteudo');
+  const semPendentes = document.getElementById('vinculo-sem-pendentes');
+  if(!resp.ok){
+    conteudo.innerHTML = `<p class="vazio">${resp.erro||'Não foi possível carregar.'}</p>`;
+    return;
+  }
+  document.getElementById('vinculo-restantes-contador').textContent = resp.restantes ? `${resp.restantes} restantes.` : '';
+  vinculoBeneficiarioAtual = resp.beneficiario;
+  vinculoPacienteEscolhido = null;
+
+  if(!resp.beneficiario){
+    conteudo.style.display = 'none';
+    semPendentes.style.display = 'block';
+    return;
+  }
+  conteudo.style.display = 'block';
+  semPendentes.style.display = 'none';
+  document.getElementById('vinculo-nome-beneficiario').textContent = resp.beneficiario.nome_beneficiario || '(nome não informado)';
+  document.getElementById('vinculo-cartao-beneficiario').textContent = resp.beneficiario.cartao_beneficiario;
+  document.getElementById('vinculo-busca-paciente').value = '';
+  document.getElementById('vinculo-resultados').style.display = 'none';
+  document.getElementById('vinculo-selecionado').style.display = 'none';
+  document.getElementById('vinculo-sugestoes-unimed').style.display = 'none';
+  atualizarBotaoConfirmarVinculo();
 }

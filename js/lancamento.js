@@ -120,6 +120,7 @@ function montarFormularioLancamento(){
   // fixo) e de novo toda vez que o Profissional mudar.
   aplicarTravasCondicionadasDoFormulario('campo_');
   ligarAutocompletePaciente('campo_');
+  ligarBotaoNovoPacienteRapido('campo_');
   const selProfLancamento = document.getElementById('campo_prof');
   if(selProfLancamento){
     selProfLancamento.addEventListener('change', ()=>aplicarTravasCondicionadasDoFormulario('campo_'));
@@ -151,6 +152,55 @@ document.getElementById('form-lancamento').addEventListener('submit', async (ev)
     confirmacao.textContent = resp.erro || 'Não foi possível salvar.';
   }
 });
+
+
+// Sub-nav da aba Lançamento (Lançamentos / Cadastro de Clientes / Cadastro
+// de Profissionais) — mesmo padrão das outras abas em grupo. Cadastro de
+// Clientes/Profissionais seguem a MESMA permissão que já usavam quando
+// moravam em Configurações → Cadastros (ver_parametros_cadastros/
+// editar_parametros_cadastros) — só mudou de endereço, não de quem pode
+// mexer.
+function prepararSubNavLancamento(){
+  const podeVerForm = temPermissao('ver_lancamento');
+  const podeVerPacientes = podeVerCadastroPacientes();
+  const podeVerProfissionais = estado.papel==='gerente';
+  const visibilidade = {
+    'lancamento-form': podeVerForm,
+    'lancamento-pacientes': podeVerPacientes,
+    'lancamento-profissionais': podeVerProfissionais
+  };
+  const rotulos = {'lancamento-form':'Lançamentos','lancamento-pacientes':'Cadastro de Clientes','lancamento-profissionais':'Cadastro de Profissionais'};
+  const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);
+  const nav = document.getElementById('sub-nav-lancamento');
+  if(!disponiveis.includes(estado.subAbaLancamento)) estado.subAbaLancamento = disponiveis[0] || null;
+  nav.innerHTML = disponiveis.map(id=>`<div class="sub-aba${id===estado.subAbaLancamento?' ativa':''}" data-sub="${id}">${rotulos[id]}</div>`).join('');
+  nav.querySelectorAll('.sub-aba').forEach(el=>{
+    el.addEventListener('click', ()=> trocarSubAbaLancamento(el.dataset.sub));
+  });
+  Object.keys(visibilidade).forEach(id=>{
+    document.getElementById(id).classList.toggle('ativa', id===estado.subAbaLancamento);
+  });
+}
+
+function trocarSubAbaLancamento(subId){
+  estado.subAbaLancamento = subId;
+  document.querySelectorAll('#sub-nav-lancamento .sub-aba').forEach(el=>el.classList.toggle('ativa', el.dataset.sub===subId));
+  ['lancamento-form','lancamento-pacientes','lancamento-profissionais'].forEach(id=>{
+    document.getElementById(id).classList.toggle('ativa', id===subId);
+  });
+  atualizarSubAbaLancamentoAtiva();
+}
+
+async function atualizarSubAbaLancamentoAtiva(){
+  if(estado.subAbaLancamento==='lancamento-form') await atualizarMeusLancamentos();
+  if(estado.subAbaLancamento==='lancamento-pacientes') prepararCadastroPacientes(podeEditarCadastroPacientes());
+  if(estado.subAbaLancamento==='lancamento-profissionais') await carregarCadastroProfissionais(estado.papel==='gerente');
+}
+
+async function atualizarAbaLancamento(){
+  prepararSubNavLancamento();
+  await atualizarSubAbaLancamentoAtiva();
+}
 
 
 async function atualizarMeusLancamentos(){
