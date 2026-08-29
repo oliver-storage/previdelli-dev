@@ -57,7 +57,7 @@ function trocarSubAbaEstoque(subId){
 
 async function atualizarSubAbaEstoqueAtiva(){
   if(estado.subAbaEstoque==='estoque-materiais') renderizarCatalogoMateriais();
-  if(estado.subAbaEstoque==='estoque-entrada') prepararEntradaEstoque();
+  if(estado.subAbaEstoque==='estoque-entrada') await prepararEntradaEstoque();
   if(estado.subAbaEstoque==='estoque-solicitar') await prepararSolicitarEstoque();
   if(estado.subAbaEstoque==='estoque-dispensados') await prepararDispensados();
   if(estado.subAbaEstoque==='estoque-dispensar') await carregarSolicitacoesPendentes();
@@ -115,6 +115,7 @@ function renderizarCatalogoMateriais(){
 
 function renderizarFornecedores(){
   const podeEditar = temPermissao('editar_estoque');
+  const podeExcluir = estado.papel === 'gerente';
   const tabela = document.getElementById('tabela-fornecedores');
   document.getElementById('botao-novo-fornecedor').style.display = podeEditar ? 'inline-flex' : 'none';
   tabela.innerHTML = `
@@ -124,15 +125,30 @@ function renderizarFornecedores(){
         <td>${f.nome}</td>
         <td class="mono">${f.cnpj||'—'}</td>
         <td>${f.contato||'—'}</td>
-        <td>${podeEditar?`<button class="botao secundario pequeno botao-editar-fornecedor" data-id="${f.id}">Editar</button>`:''}</td>
+        <td>
+          ${podeEditar?`<button class="botao secundario pequeno botao-editar-fornecedor" data-id="${f.id}">Editar</button>`:''}
+          ${podeExcluir?`<button class="botao sutil pequeno botao-excluir-fornecedor" data-id="${f.id}">Excluir</button>`:''}
+        </td>
       </tr>`).join('')}</tbody>`;
-  if(!podeEditar) return;
-  tabela.querySelectorAll('.botao-editar-fornecedor').forEach(botao=>{
-    botao.addEventListener('click', ()=>{
-      const fornecedor = estoqueCacheFornecedores.find(f=>f.id===botao.dataset.id);
-      if(fornecedor) abrirModalFornecedor(fornecedor);
+  if(podeEditar){
+    tabela.querySelectorAll('.botao-editar-fornecedor').forEach(botao=>{
+      botao.addEventListener('click', ()=>{
+        const fornecedor = estoqueCacheFornecedores.find(f=>f.id===botao.dataset.id);
+        if(fornecedor) abrirModalFornecedor(fornecedor);
+      });
     });
-  });
+  }
+  if(podeExcluir){
+    tabela.querySelectorAll('.botao-excluir-fornecedor').forEach(botao=>{
+      botao.addEventListener('click', async ()=>{
+        if(!confirm('Excluir esse fornecedor? Essa ação não pode ser desfeita.')) return;
+        const resp = await api('excluirFornecedor', {id: botao.dataset.id});
+        if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
+        await carregarFornecedoresEstoque();
+        renderizarFornecedores();
+      });
+    });
+  }
 }
 
 
@@ -239,12 +255,13 @@ function fecharModalMaterial(){
 /* ---------------------------------------------------------------------
    ENTRADA POR NF
 --------------------------------------------------------------------- */
-function prepararEntradaEstoque(){
+async function prepararEntradaEstoque(){
   document.getElementById('entrada-material').innerHTML = estoqueCacheMateriais.map(m=>`<option value="${m.id}">${m.nome}</option>`).join('');
   document.getElementById('entrada-fornecedor').innerHTML = '<option value="">—</option>' + estoqueCacheFornecedores.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
   if(!document.getElementById('entrada-data').value){
     document.getElementById('entrada-data').value = new Date().toISOString().slice(0,10);
   }
+  await carregarLotesEstoque();
   if(estoqueSubAbaPronta.entrada) return;
   estoqueSubAbaPronta.entrada = true;
   prepararImportacaoPdfNf();
@@ -268,6 +285,7 @@ function prepararEntradaEstoque(){
     if(!resp.ok){ confirmacao.style.color='var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
     confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Entrada registrada ✓';
     ['entrada-nf','entrada-lote','entrada-validade','entrada-quantidade','entrada-valor-unitario'].forEach(id=>document.getElementById(id).value='');
+    await carregarLotesEstoque();
     setTimeout(()=>{ if(confirmacao.textContent==='Entrada registrada ✓') confirmacao.textContent=''; }, 2500);
   });
 }
@@ -503,6 +521,37 @@ async function carregarDispensados(){
    sozinho geraria erro silencioso de estoque. Texto extraído fica
    visível pra copiar manualmente o que precisar.
 --------------------------------------------------------------------- */
+async function carregarLotesEstoque(){
+  const resp = await api('listarLotesEstoque', {});
+  const tabela = document.getElementById('tabela-lotes-estoque');
+  const podeExcluir = estado.papel === 'gerente';
+  const lotes = resp.ok ? (resp.lotes||[]) : [];
+  tabela.innerHTML = lotes.length===0 ? '<tr><td class="vazio">Nenhuma entrada registrada ainda.</td></tr>' : `
+    <thead><tr><th>Material</th><th>Fornecedor</th><th>NF</th><th>Lote</th><th>Data</th><th>Validade</th><th>Qtd. atual</th><th></th></tr></thead>
+    <tbody>${lotes.map(l=>`
+      <tr data-id="${l.id}">
+        <td>${(l.materiais||{}).nome||'—'}</td>
+        <td>${(l.fornecedores||{}).nome||'—'}</td>
+        <td class="mono">${l.nota_fiscal||'—'}</td>
+        <td class="mono">${l.lote||'—'}</td>
+        <td>${l.data_entrada?new Date(l.data_entrada+'T12:00').toLocaleDateString('pt-BR'):'—'}</td>
+        <td>${l.validade?new Date(l.validade+'T12:00').toLocaleDateString('pt-BR'):'—'}</td>
+        <td class="mono">${l.quantidade_atual}</td>
+        <td>${podeExcluir?`<button class="botao sutil pequeno botao-excluir-lote" data-id="${l.id}">Excluir</button>`:''}</td>
+      </tr>`).join('')}</tbody>`;
+
+  if(!podeExcluir) return;
+  tabela.querySelectorAll('.botao-excluir-lote').forEach(botao=>{
+    botao.addEventListener('click', async ()=>{
+      if(!confirm('Excluir essa entrada de NF? Essa ação não pode ser desfeita.')) return;
+      const resp2 = await api('excluirLoteEstoque', {id: botao.dataset.id});
+      if(!resp2.ok){ alert(resp2.erro || 'Não foi possível excluir.'); return; }
+      await carregarLotesEstoque();
+    });
+  });
+}
+
+
 function prepararImportacaoPdfNf(){
   if(typeof pdfjsLib !== 'undefined'){
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -521,12 +570,7 @@ function prepararImportacaoPdfNf(){
     try{
       const bytes = await arquivo.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data: bytes}).promise;
-      let textoCompleto = '';
-      for(let i=1; i<=pdf.numPages; i++){
-        const pagina = await pdf.getPage(i);
-        const conteudo = await pagina.getTextContent();
-        textoCompleto += conteudo.items.map(it=>it.str).join(' ') + '\n';
-      }
+      const textoCompleto = await extrairTextoPdfComLinhas(pdf);
 
       document.getElementById('entrada-pdf-texto').value = textoCompleto;
       document.getElementById('entrada-pdf-texto-detalhes').style.display = 'block';
@@ -583,6 +627,35 @@ function prepararImportacaoPdfNf(){
 
 // Função pura de extração — separada da UI de propósito, pra dar pra
 // testar isoladamente (regex validado contra NF real antes de integrar).
+// Extrai o texto de um PDF já carregado pelo pdf.js, reconstruindo quebra
+// de linha de verdade — o pdf.js devolve os trechos de texto soltos, sem
+// indicar quebra de linha nenhuma; a única forma de saber se dois trechos
+// estão na MESMA linha ou em linhas diferentes é comparando a posição
+// vertical (transform[5]) de cada um. Sem isso, o texto vira uma sopa sem
+// quebra nenhuma e os regex de extração (que dependem de linha) não
+// reconhecem nada — foi exatamente o bug que o usuário relatou.
+async function extrairTextoPdfComLinhas(pdf){
+  let textoCompleto = '';
+  for(let i=1; i<=pdf.numPages; i++){
+    const pagina = await pdf.getPage(i);
+    const conteudo = await pagina.getTextContent();
+    let ultimoY = null;
+    let linhaAtual = '';
+    conteudo.items.forEach(item=>{
+      const y = item.transform[5];
+      if(ultimoY !== null && Math.abs(y - ultimoY) > 2){
+        textoCompleto += linhaAtual.trim() + '\n';
+        linhaAtual = '';
+      }
+      linhaAtual += item.str + ' ';
+      ultimoY = y;
+    });
+    textoCompleto += linhaAtual.trim() + '\n';
+  }
+  return textoCompleto;
+}
+
+
 function extrairDadosNfPdf(texto){
   const resultado = {fornecedor: null, numeroNf: null, itens: []};
 
@@ -638,28 +711,31 @@ function prepararImportacaoCadastroPdf(){
   }
 
   document.getElementById('cadastro-pdf-arquivo').addEventListener('change', async (ev)=>{
-    const arquivo = ev.target.files[0];
     const status = document.getElementById('cadastro-pdf-status');
-    if(!arquivo) return;
-    if(typeof pdfjsLib === 'undefined'){
-      status.style.color = 'var(--danger)'; status.textContent = 'Leitor de PDF não carregou (sem internet?).';
-      return;
-    }
-    status.style.color = 'var(--ink-400)'; status.textContent = 'Lendo PDF...';
-    document.getElementById('cadastro-pdf-revisao').style.display = 'none';
+    console.log('[Importar NF] arquivo selecionado, iniciando...'); // ajuda a diagnosticar no F12 se algo travar silenciosamente
     try{
+      const arquivo = ev.target.files[0];
+      if(!arquivo){ console.log('[Importar NF] nenhum arquivo (cancelou o seletor).'); return; }
+      status.style.color = 'var(--ink-400)'; status.textContent = 'Lendo PDF...';
+      document.getElementById('cadastro-pdf-revisao').style.display = 'none';
+
+      if(typeof pdfjsLib === 'undefined'){
+        status.style.color = 'var(--danger)';
+        status.textContent = 'O leitor de PDF (pdf.js) não carregou — provavelmente bloqueado por firewall/rede da clínica, ou sem internet no momento. Recarregue a página (Cmd/Ctrl+Shift+R) com internet ativa e tente de novo.';
+        console.log('[Importar NF] pdfjsLib indefinido — CDN não carregou.');
+        return;
+      }
+
       const bytes = await arquivo.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data: bytes}).promise;
-      let textoCompleto = '';
-      for(let i=1; i<=pdf.numPages; i++){
-        const pagina = await pdf.getPage(i);
-        const conteudo = await pagina.getTextContent();
-        textoCompleto += conteudo.items.map(it=>it.str).join(' ') + '\n';
-      }
+      const textoCompleto = await extrairTextoPdfComLinhas(pdf);
+      console.log('[Importar NF] texto extraído, tamanho:', textoCompleto.length);
+      document.getElementById('cadastro-pdf-texto').value = textoCompleto;
+      document.getElementById('cadastro-pdf-texto-detalhes').style.display = 'block';
       const extraido = extrairDadosNfPdf(textoCompleto);
       if(!extraido.fornecedor || extraido.itens.length===0){
         status.style.color = 'var(--danger)';
-        status.textContent = 'Não consegui reconhecer o layout desse PDF — confira se é uma NF-e (DANFE) de texto, não escaneada.';
+        status.textContent = 'Não consegui reconhecer o layout desse PDF — abra "Ver texto extraído" abaixo, copia e me manda pra eu ajustar.';
         return;
       }
 
@@ -678,8 +754,9 @@ function prepararImportacaoCadastroPdf(){
       status.style.color = 'var(--teal-700)';
       status.textContent = `Lido com sucesso — ${extraido.itens.length} itens encontrados. Revise abaixo antes de salvar.`;
     }catch(e){
+      console.error('[Importar NF] erro:', e);
       status.style.color = 'var(--danger)';
-      status.textContent = 'Não consegui ler esse PDF (pode ser escaneado/imagem, sem texto).';
+      status.textContent = 'Erro ao ler o PDF: ' + (e && e.message ? e.message : String(e));
     }
   });
 

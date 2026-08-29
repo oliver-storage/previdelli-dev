@@ -398,6 +398,37 @@ async function supabaseApi(acao, dados) {
       return {ok:true, lote:data};
     }
 
+    case 'listarLotesEstoque': {
+      const { data, error } = await supabaseClient.from('estoque_lotes')
+        .select('*, materiais(nome), fornecedores(nome)').order('data_entrada', {ascending:false}).limit(100);
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, lotes: data||[]};
+    }
+
+    // Excluir NF/entrada — gerente only (checado na tela). Bloqueia se já
+    // tiver dispensação (reservada ou confirmada) puxando desse lote —
+    // apagar nesse caso deixaria o histórico de dispensação inconsistente.
+    case 'excluirLoteEstoque': {
+      const { data: dispensacoes } = await supabaseClient.from('dispensacoes').select('id').eq('lote_id', dados.id).limit(1);
+      if(dispensacoes && dispensacoes.length){
+        return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído.'};
+      }
+      const { error } = await supabaseClient.from('estoque_lotes').delete().eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
+    // Excluir fornecedor — gerente only. Bloqueia se tiver alguma entrada
+    // de NF vinculada (senão o histórico do lote fica com fornecedor_id
+    // apontando pra nada).
+    case 'excluirFornecedor': {
+      const { data: lotes } = await supabaseClient.from('estoque_lotes').select('id').eq('fornecedor_id', dados.id).limit(1);
+      if(lotes && lotes.length){
+        return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro, ou deixe o fornecedor como está.'};
+      }
+      const { error } = await supabaseClient.from('fornecedores').delete().eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
     // ---------- ESTOQUE — Posição atual (soma dos lotes vivos por material) ----------
     case 'obterPosicaoEstoque': {
       const [materiaisResp, lotesResp] = await Promise.all([
@@ -1077,6 +1108,21 @@ function mockApi(acao, dados) {
       };
       demo.estoqueLotes.push(novo);
       return {ok:true, lote:novo};
+    }
+    case 'listarLotesEstoque': {
+      const lista = demo.estoqueLotes.slice().sort((a,b)=>new Date(b.data_entrada)-new Date(a.data_entrada)).slice(0,100)
+        .map(l=>({...l, materiais:{nome:(demo.materiais.find(m=>m.id===l.material_id)||{}).nome}, fornecedores:{nome:(demo.fornecedores.find(f=>f.id===l.fornecedor_id)||{}).nome}}));
+      return {ok:true, lotes: lista};
+    }
+    case 'excluirLoteEstoque': {
+      if(demo.dispensacoes.some(d=>d.lote_id===dados.id)) return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído.'};
+      demo.estoqueLotes = demo.estoqueLotes.filter(l=>l.id!==dados.id);
+      return {ok:true};
+    }
+    case 'excluirFornecedor': {
+      if(demo.estoqueLotes.some(l=>l.fornecedor_id===dados.id)) return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro, ou deixe o fornecedor como está.'};
+      demo.fornecedores = demo.fornecedores.filter(f=>f.id!==dados.id);
+      return {ok:true};
     }
     case 'obterPosicaoEstoque': {
       return {ok:true, materiais: demo.materiais.filter(m=>m.ativo).slice(), lotes: demo.estoqueLotes.filter(l=>l.quantidade_atual>0).slice()};

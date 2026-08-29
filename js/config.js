@@ -1048,6 +1048,48 @@
             (nome/unidade/valor todos batendo), criação de fornecedor+20
             materiais, e reimportação da mesma nota reconhecendo tudo sem
             duplicar nada.
+   v6.31.1 — Correção: importação de NF em PDF (Cadastro) não dava
+            nenhum feedback quando falhava em silêncio — endurecido pra
+            nunca mais isso acontecer. Mostra na TELA (não só no console)
+            se o pdf.js não carregou (rede/firewall bloqueando o CDN), se
+            o PDF não tem texto reconhecível, ou qualquer outro erro —
+            com a mensagem real, não genérica. Logs de diagnóstico
+            adicionados (visíveis no F12 → Console) em cada etapa.
+            Favicon adicionado (SVG embutido, sem arquivo externo — letra
+            "C" na cor da marca), resolvendo o 404 de favicon.ico que
+            aparecia no console.
+            Testado: cenário de pdf.js não carregado mostra mensagem
+            clara na tela; cancelar o seletor de arquivo não trava nada.
+   v6.31.2 — Achado e corrigido: a causa real de "Não consegui reconhecer
+            o layout desse PDF" (usuário testou com uma NF real e bateu
+            nisso). Confirmado com teste isolado: o pdf.js devolve o texto
+            do PDF em pedaços soltos, SEM quebra de linha nenhuma — juntar
+            tudo só com espaço (como o código fazia) produz uma "sopa de
+            texto" sem linha nenhuma, e os regex de extração (que
+            dependem de linha pra achar cada campo) não reconhecem nada.
+            Corrigido com extrairTextoPdfComLinhas — reconstrói quebra de
+            linha de verdade comparando a posição vertical (Y) de cada
+            trecho de texto (técnica padrão pra isso). Aplicado nas duas
+            telas que leem PDF (Entrada NF e Cadastro).
+            De brinde: painel "Ver texto extraído" (igual o que já
+            existia em Entrada) adicionado também em Cadastro — aparece
+            mesmo quando falha, pra poder copiar e mandar se algum layout
+            de PDF diferente não for reconhecido no futuro.
+            Testado: o mesmo texto real da NF do usuário, SEM quebra de
+            linha (simulando o bug antigo), reproduz exatamente o erro
+            relatado (0 itens encontrados) — confirma a causa raiz.
+   v6.32.0 — Exclusão de Entrada de NF (lote) e Fornecedor, a pedido do
+            usuário (limpar dados de teste). Gerente-only, sem exceção.
+            Entrada (NF) ganhou uma lista "Últimas entradas registradas"
+            com botão Excluir. Bloqueia se o lote já tiver dispensação
+            vinculada (reservada ou confirmada) — evita deixar o
+            histórico de dispensação inconsistente.
+            Fornecedores ganhou botão Excluir. Bloqueia se o fornecedor
+            já tiver alguma entrada de NF vinculada.
+            Exclusão de Lançamento já existia (Verificar/Crítica).
+            Testado: exclusão sem vínculo funciona nos dois; exclusão COM
+            vínculo é bloqueada nos dois, com mensagem clara; atendente
+            não vê o botão Excluir em nenhum dos dois.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
