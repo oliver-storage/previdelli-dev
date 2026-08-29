@@ -21,19 +21,26 @@ async function atualizarEstoque(){
   await atualizarSubAbaEstoqueAtiva();
 }
 
+// Sub-abas de 2º nível. Chave = sub-aba pai, valor = ids dos painéis
+// internos na ordem em que aparecem. O 1º da lista é o padrão.
+const SUB2_ESTOQUE = {
+  'estoque-fornecedor': ['forn-automatico','forn-manual'],
+  'estoque-materiais':  ['mat-atual','mat-automatico','mat-manual']
+};
+
 function prepararSubNavEstoque(){
   const podeSolicitar = temPermissao('solicitar_estoque');
   const podeDispensar = temPermissao('dispensar_estoque');
   const podeEditar = temPermissao('editar_estoque');
   const visibilidade = {
+    'estoque-fornecedor': podeEditar,
     'estoque-materiais': podeEditar,
-    'estoque-entrada': podeEditar,
     'estoque-solicitar': podeSolicitar,
     'estoque-dispensar': podeDispensar,
     'estoque-dispensados': podeSolicitar || podeDispensar,
     'estoque-relatorio': podeEditar || podeDispensar
   };
-  const rotulos = {'estoque-materiais':'Cadastro','estoque-entrada':'Entrada (NF)','estoque-solicitar':'Solicitar','estoque-dispensar':'Dispensar','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
+  const rotulos = {'estoque-fornecedor':'Fornecedor','estoque-materiais':'Materiais','estoque-solicitar':'Solicitar','estoque-dispensar':'Dispensar','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
   const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);
   const nav = document.getElementById('sub-nav-estoque');
   if(!disponiveis.includes(estado.subAbaEstoque)) estado.subAbaEstoque = disponiveis[0] || null;
@@ -44,20 +51,46 @@ function prepararSubNavEstoque(){
   Object.keys(visibilidade).forEach(id=>{
     document.getElementById(id).classList.toggle('ativa', id===estado.subAbaEstoque);
   });
+  prepararSubNav2Estoque();
 }
 
-function trocarSubAbaEstoque(subId){
-  estado.subAbaEstoque = subId;
-  document.querySelectorAll('#sub-nav-estoque .sub-aba').forEach(el=>el.classList.toggle('ativa', el.dataset.sub===subId));
-  ['estoque-materiais','estoque-entrada','estoque-solicitar','estoque-dispensar','estoque-dispensados','estoque-relatorio'].forEach(id=>{
-    document.getElementById(id).classList.toggle('ativa', id===subId);
+// Liga os cliques das sub-abas internas uma única vez.
+let subNav2EstoquePronta = false;
+function prepararSubNav2Estoque(){
+  if(subNav2EstoquePronta) return;
+  subNav2EstoquePronta = true;
+  Object.keys(SUB2_ESTOQUE).forEach(pai=>{
+    document.querySelectorAll(`#${pai} .sub-nav.interna .sub-aba`).forEach(el=>{
+      el.addEventListener('click', ()=> trocarSubAba2Estoque(pai, el.dataset.sub2));
+    });
+  });
+}
+
+function trocarSubAba2Estoque(pai, sub2Id){
+  estado.subAba2Estoque[pai] = sub2Id;
+  document.querySelectorAll(`#${pai} .sub-nav.interna .sub-aba`)
+    .forEach(el=>el.classList.toggle('ativa', el.dataset.sub2===sub2Id));
+  SUB2_ESTOQUE[pai].forEach(id=>{
+    document.getElementById(id).classList.toggle('ativa', id===sub2Id);
   });
   atualizarSubAbaEstoqueAtiva();
 }
 
+// Qual painel interno está aberto dentro da sub-aba pai (com padrão).
+function sub2Ativa(pai){
+  return estado.subAba2Estoque[pai] || SUB2_ESTOQUE[pai][0];
+}
+
 async function atualizarSubAbaEstoqueAtiva(){
-  if(estado.subAbaEstoque==='estoque-materiais') renderizarCatalogoMateriais();
-  if(estado.subAbaEstoque==='estoque-entrada') await prepararEntradaEstoque();
+  if(estado.subAbaEstoque==='estoque-fornecedor'){
+    renderizarFornecedores();
+  }
+  if(estado.subAbaEstoque==='estoque-materiais'){
+    const ativa = sub2Ativa('estoque-materiais');
+    if(ativa==='mat-atual') await carregarLotesEstoque();
+    else if(ativa==='mat-manual'){ await prepararEntradaEstoque(); renderizarCatalogoMateriais(); }
+    else await prepararEntradaEstoque();
+  }
   if(estado.subAbaEstoque==='estoque-solicitar') await prepararSolicitarEstoque();
   if(estado.subAbaEstoque==='estoque-dispensados') await prepararDispensados();
   if(estado.subAbaEstoque==='estoque-dispensar') await carregarSolicitacoesPendentes();
@@ -80,6 +113,7 @@ async function carregarFornecedoresEstoque(){
 
 function renderizarCatalogoMateriais(){
   const podeEditar = temPermissao('editar_estoque');
+  const podeExcluir = estado.papel === 'gerente';
   const tabela = document.getElementById('tabela-materiais');
   tabela.innerHTML = `
     <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Estoque mínimo</th><th>Ativo</th><th></th></tr></thead>
@@ -90,8 +124,23 @@ function renderizarCatalogoMateriais(){
         <td>${m.unidade||'unidade'}</td>
         <td class="mono">${m.estoque_minimo||0}</td>
         <td>${m.ativo?'<span style="color:var(--teal-700);">Sim</span>':'<span style="color:var(--ink-400);">Não</span>'}</td>
-        <td>${podeEditar?`<button class="botao secundario pequeno botao-editar-material" data-id="${m.id}">Editar</button>`:''}</td>
+        <td>
+          ${podeEditar?`<button class="botao secundario pequeno botao-editar-material" data-id="${m.id}">Editar</button>`:''}
+          ${podeExcluir?`<button class="botao sutil pequeno botao-excluir-material" data-id="${m.id}">Excluir</button>`:''}
+        </td>
       </tr>`).join('')}</tbody>`;
+
+  if(podeExcluir){
+    tabela.querySelectorAll('.botao-excluir-material').forEach(botao=>{
+      botao.addEventListener('click', async ()=>{
+        if(!confirm('Excluir esse material do catálogo? Essa ação não pode ser desfeita.')) return;
+        const resp = await api('excluirMaterial', {id: botao.dataset.id});
+        if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
+        await carregarMateriaisEstoque();
+        renderizarCatalogoMateriais();
+      });
+    });
+  }
 
   const botaoNovo = document.getElementById('botao-novo-material');
   botaoNovo.style.display = podeEditar ? 'inline-flex' : 'none';
@@ -105,15 +154,21 @@ function renderizarCatalogoMateriais(){
   }
 
   if(!estoqueSubAbaPronta.materiais){
-    botaoNovo.addEventListener('click', ()=>abrirModalMaterial(null));
-    document.getElementById('botao-novo-fornecedor').addEventListener('click', ()=>abrirModalFornecedor(null));
-    prepararImportacaoCadastroPdf();
+    botaoNovo.addEventListener('click', ()=>{
+      trocarSubAba2Estoque('estoque-materiais','mat-manual');
+      abrirModalMaterial(null);
+    });
     estoqueSubAbaPronta.materiais = true;
   }
-  renderizarFornecedores();
 }
 
 function renderizarFornecedores(){
+  // Ligações da sub-aba Fornecedor (botão + importador PDF) — uma vez só.
+  if(!estoqueSubAbaPronta.fornecedor){
+    document.getElementById('botao-novo-fornecedor').addEventListener('click', ()=>abrirModalFornecedor(null));
+    prepararImportacaoCadastroPdf();
+    estoqueSubAbaPronta.fornecedor = true;
+  }
   const podeEditar = temPermissao('editar_estoque');
   const podeExcluir = estado.papel === 'gerente';
   const tabela = document.getElementById('tabela-fornecedores');
@@ -232,6 +287,7 @@ function prepararModalMaterial(){
     if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar.'); return; }
     fecharModalMaterial();
     await carregarMateriaisEstoque();
+    await prepararEntradaEstoque(); // atualiza o select de materiais no formulário manual
     renderizarCatalogoMateriais();
   });
 }
@@ -253,6 +309,61 @@ function fecharModalMaterial(){
 
 
 /* ---------------------------------------------------------------------
+   MODAL LOTE (editar entrada de NF)
+--------------------------------------------------------------------- */
+let loteEmEdicaoId = null;
+let modalLotePronto = false;
+function prepararModalLote(){
+  if(modalLotePronto) return;
+  modalLotePronto = true;
+  document.getElementById('botao-cancelar-modal-lote-estoque').addEventListener('click', fecharModalLote);
+  document.getElementById('sobreposicao-modal-lote-estoque').addEventListener('click', (ev)=>{
+    if(ev.target.id==='sobreposicao-modal-lote-estoque') fecharModalLote();
+  });
+  document.getElementById('form-modal-lote-estoque').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const botao = ev.target.querySelector('button[type="submit"]');
+    const rotuloOriginal = botao.textContent;
+    botao.disabled = true; botao.textContent = 'Salvando...';
+    const dadosLote = {
+      id: loteEmEdicaoId,
+      material_id: document.getElementById('modal-lote-material').value,
+      fornecedor_id: document.getElementById('modal-lote-fornecedor').value || null,
+      nota_fiscal: document.getElementById('modal-lote-nf').value,
+      lote: document.getElementById('modal-lote-lote').value,
+      data_entrada: document.getElementById('modal-lote-data').value,
+      validade: document.getElementById('modal-lote-validade').value || null,
+      quantidade_atual: document.getElementById('modal-lote-quantidade-atual').value,
+      valor_unitario: document.getElementById('modal-lote-valor-unitario').value || null
+    };
+    const resp = await api('atualizarLoteEstoque', dadosLote);
+    botao.disabled = false; botao.textContent = rotuloOriginal;
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar.'); return; }
+    fecharModalLote();
+    await carregarLotesEstoque();
+  });
+}
+function abrirModalEditarLote(lote){
+  if(!lote) return;
+  prepararModalLote();
+  loteEmEdicaoId = lote.id;
+  document.getElementById('modal-lote-material').innerHTML = estoqueCacheMateriais.map(m=>`<option value="${m.id}" ${m.id===lote.material_id?'selected':''}>${m.nome}</option>`).join('');
+  document.getElementById('modal-lote-fornecedor').innerHTML = '<option value="">—</option>' + estoqueCacheFornecedores.map(f=>`<option value="${f.id}" ${f.id===lote.fornecedor_id?'selected':''}>${f.nome}</option>`).join('');
+  document.getElementById('modal-lote-nf').value = lote.nota_fiscal||'';
+  document.getElementById('modal-lote-lote').value = lote.lote||'';
+  document.getElementById('modal-lote-data').value = lote.data_entrada||'';
+  document.getElementById('modal-lote-validade').value = lote.validade||'';
+  document.getElementById('modal-lote-quantidade-atual').value = lote.quantidade_atual||0;
+  document.getElementById('modal-lote-valor-unitario').value = lote.valor_unitario||'';
+  document.getElementById('sobreposicao-modal-lote-estoque').classList.add('aberta');
+}
+function fecharModalLote(){
+  document.getElementById('sobreposicao-modal-lote-estoque').classList.remove('aberta');
+  loteEmEdicaoId = null;
+}
+
+
+/* ---------------------------------------------------------------------
    ENTRADA POR NF
 --------------------------------------------------------------------- */
 async function prepararEntradaEstoque(){
@@ -261,7 +372,6 @@ async function prepararEntradaEstoque(){
   if(!document.getElementById('entrada-data').value){
     document.getElementById('entrada-data').value = new Date().toISOString().slice(0,10);
   }
-  await carregarLotesEstoque();
   if(estoqueSubAbaPronta.entrada) return;
   estoqueSubAbaPronta.entrada = true;
   prepararImportacaoPdfNf();
@@ -285,7 +395,6 @@ async function prepararEntradaEstoque(){
     if(!resp.ok){ confirmacao.style.color='var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
     confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Entrada registrada ✓';
     ['entrada-nf','entrada-lote','entrada-validade','entrada-quantidade','entrada-valor-unitario'].forEach(id=>document.getElementById(id).value='');
-    await carregarLotesEstoque();
     setTimeout(()=>{ if(confirmacao.textContent==='Entrada registrada ✓') confirmacao.textContent=''; }, 2500);
   });
 }
@@ -524,6 +633,7 @@ async function carregarDispensados(){
 async function carregarLotesEstoque(){
   const resp = await api('listarLotesEstoque', {});
   const tabela = document.getElementById('tabela-lotes-estoque');
+  const podeEditar = temPermissao('editar_estoque');
   const podeExcluir = estado.papel === 'gerente';
   const lotes = resp.ok ? (resp.lotes||[]) : [];
   tabela.innerHTML = lotes.length===0 ? '<tr><td class="vazio">Nenhuma entrada registrada ainda.</td></tr>' : `
@@ -537,18 +647,27 @@ async function carregarLotesEstoque(){
         <td>${l.data_entrada?new Date(l.data_entrada+'T12:00').toLocaleDateString('pt-BR'):'—'}</td>
         <td>${l.validade?new Date(l.validade+'T12:00').toLocaleDateString('pt-BR'):'—'}</td>
         <td class="mono">${l.quantidade_atual}</td>
-        <td>${podeExcluir?`<button class="botao sutil pequeno botao-excluir-lote" data-id="${l.id}">Excluir</button>`:''}</td>
+        <td>
+          ${podeEditar?`<button class="botao secundario pequeno botao-editar-lote" data-id="${l.id}">Editar</button>`:''}
+          ${podeExcluir?`<button class="botao sutil pequeno botao-excluir-lote" data-id="${l.id}">Excluir</button>`:''}
+        </td>
       </tr>`).join('')}</tbody>`;
 
-  if(!podeExcluir) return;
-  tabela.querySelectorAll('.botao-excluir-lote').forEach(botao=>{
-    botao.addEventListener('click', async ()=>{
-      if(!confirm('Excluir essa entrada de NF? Essa ação não pode ser desfeita.')) return;
-      const resp2 = await api('excluirLoteEstoque', {id: botao.dataset.id});
-      if(!resp2.ok){ alert(resp2.erro || 'Não foi possível excluir.'); return; }
-      await carregarLotesEstoque();
+  if(podeEditar){
+    tabela.querySelectorAll('.botao-editar-lote').forEach(botao=>{
+      botao.addEventListener('click', ()=> abrirModalEditarLote(lotes.find(l=>l.id===botao.dataset.id)));
     });
-  });
+  }
+  if(podeExcluir){
+    tabela.querySelectorAll('.botao-excluir-lote').forEach(botao=>{
+      botao.addEventListener('click', async ()=>{
+        if(!confirm('Excluir essa entrada de NF? Essa ação não pode ser desfeita.')) return;
+        const resp2 = await api('excluirLoteEstoque', {id: botao.dataset.id});
+        if(!resp2.ok){ alert(resp2.erro || 'Não foi possível excluir.'); return; }
+        await carregarLotesEstoque();
+      });
+    });
+  }
 }
 
 

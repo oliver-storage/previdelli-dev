@@ -1091,6 +1091,13 @@
             vínculo é bloqueada nos dois, com mensagem clara; atendente
             não vê o botão Excluir em nenhum dos dois.
 
+   v6.34.0 — Reorganização da aba Estoque concluída: Fornecedor com
+            sub-abas Cadastro Automático/Manual; Materiais com sub-abas
+            Estoque Atual/Cadastro Automático/Manual. Modal de edição
+            de entrada de NF (lote) implementado. Ação atualizarLoteEstoque
+            adicionada em api.js (real e demo). Cada linha mostra NF e
+            lote; botões Editar e Excluir (gerente-only) nas tabelas.
+
    v6.33.0 — Política de exclusão (Estoque) virou parâmetro, a pedido do
             usuário: as duas travas de integridade da v6.32.0 deixaram de
             ser fixas no código. Configurações → Cadastros do Sistema
