@@ -1000,6 +1000,54 @@
             avisa pra preencher manual.
             Testado: regex de CNPJ/NF/Data contra texto de exemplo — os 3
             bateram certo.
+   v6.29.2 — Direitos e Privilégios: "Parâmetros — Cadastros" renomeado
+            pra "Cadastros do Sistema" (mais claro). Todos os grupos da
+            matriz ganharam tooltip (passar o mouse no cabeçalho) com
+            explicação curta do que cada um cobre.
+   v6.29.3 — Direitos e Privilégios: explicação de cada grupo virou texto
+            visível abaixo do título (era só tooltip no hover).
+   v6.30.0 — Reestruturação de arquivos, a pedido do usuário: os 7 painéis
+            (Início, Lançamento, Verificação, Dashboard, Financeiro,
+            Estoque, Configurações) e os 6 modais saíram do index.html e
+            viraram arquivos próprios em html/ (inicio.html,
+            lancamento.html, verificacao.html, dashboard.html,
+            financeiro.html, estoque.html, configuracoes.html,
+            modais.html). index.html caiu de ~56KB pra ~5KB — ficou só o
+            esqueleto (login, header, nav) + um carregador que busca cada
+            html/*.html via fetch e injeta no lugar certo, ANTES de
+            carregar qualquer script do app (importante: vários arquivos
+            JS fazem addEventListener direto no carregamento, sem esperar
+            nada — se os scripts rodassem antes dos fragmentos existirem,
+            quebrava tudo). Scripts continuam carregando em sequência
+            (não em paralelo), sessao-login.js por último, exatamente
+            como antes.
+            Nenhum ID mudou, nenhum JS foi tocado — é só onde o HTML mora
+            fisicamente.
+            Testado: os 8 fragmentos respondem 200 com conteúdo correto
+            num servidor local de verdade; simulação completa da injeção
+            reproduz exatamente o HTML final que existia antes da
+            divisão; os 13 elementos-chave de todos os módulos aparecem
+            certinho depois de montado; ordem dos scripts confirmada
+            (sessao-login por último, supabase-js antes de config.js).
+   v6.31.0 — Estoque → Cadastro: importação de Fornecedor + Materiais
+            direto do PDF da NF (extrairDadosNfPdf, testado contra NF real
+            do usuário — HOSPMEDICA, 20 itens, 100% de acerto). Se o
+            fornecedor já existe (mesmo CNPJ), reaproveita — só cadastra
+            materiais novos, reconhecidos pelo código do produto na NF
+            (campo novo materiais.codigo_fornecedor, evita duplicar em
+            reimportações da mesma nota ou de notas futuras do mesmo
+            fornecedor). Tela de revisão obrigatória antes de salvar —
+            cada item pode ser desmarcado/editado, fornecedor novo tem o
+            nome editável, nada é gravado sem clicar em "Salvar catálogo".
+            Campos novos: fornecedores ganha endereco/cidade/uf/cep/
+            inscricao_estadual; materiais ganha codigo_fornecedor/
+            nf_origem (registra de qual NF o material veio na primeira
+            vez).
+            Requer SQL: sql/10_fornecedores_materiais_campos_nf.sql
+            Testado ponta a ponta com o PDF real: extração dos 20 itens
+            (nome/unidade/valor todos batendo), criação de fornecedor+20
+            materiais, e reimportação da mesma nota reconhecendo tudo sem
+            duplicar nada.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
