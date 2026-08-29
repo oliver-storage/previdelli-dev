@@ -120,6 +120,35 @@
             </div>
 
 
+            <div class="cartao" id="cartao-politica-exclusao" style="max-width:820px;">
+              <h3>Política de exclusão (Estoque)</h3>
+              <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+                Excluir Fornecedor e Entrada de NF é sempre restrito ao <b>Gerente</b>. Aqui você decide se as
+                travas de integridade continuam valendo. Com a trava ligada (padrão), o sistema recusa a exclusão
+                quando existe registro dependente.
+              </p>
+              <p style="margin:0 0 16px;color:var(--gold-600);font-size:12px;background:var(--gold-100);padding:10px 12px;border-radius:8px;">
+                ⚠️ Liberar é para <b>teste</b>. Apagar um lote que já teve dispensação deixa o histórico de
+                dispensação apontando pra um lote que não existe mais, e apagar um fornecedor com NF deixa a
+                entrada sem origem. Religue as travas antes de usar em produção.
+              </p>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;">
+                  <input type="checkbox" id="chk-excluir-lote-com-dispensacao" style="margin-top:2px;">
+                  <span>Permitir excluir <b>Entrada de NF (lote)</b> mesmo com dispensação vinculada</span>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;">
+                  <input type="checkbox" id="chk-excluir-fornecedor-com-nf" style="margin-top:2px;">
+                  <span>Permitir excluir <b>Fornecedor</b> mesmo com entrada(s) de NF vinculada(s)</span>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:16px;">
+                <button class="botao secundario" id="botao-salvar-politica-exclusao">Salvar</button>
+                <span id="confirmacao-politica-exclusao" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
+              </div>
+            </div>
+
+
             <div class="cartao" style="max-width:820px;">
               <h3>Importar produção em massa (CSV)</h3>
               <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">

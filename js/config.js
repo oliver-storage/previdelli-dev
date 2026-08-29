@@ -1090,6 +1090,21 @@
             Testado: exclusão sem vínculo funciona nos dois; exclusão COM
             vínculo é bloqueada nos dois, com mensagem clara; atendente
             não vê o botão Excluir em nenhum dos dois.
+
+   v6.33.0 — Política de exclusão (Estoque) virou parâmetro, a pedido do
+            usuário: as duas travas de integridade da v6.32.0 deixaram de
+            ser fixas no código. Configurações → Cadastros do Sistema
+            ganhou o cartão "Política de exclusão (Estoque)", gerente-only,
+            com dois interruptores — permitir excluir lote mesmo com
+            dispensação vinculada, e permitir excluir fornecedor mesmo com
+            NF vinculada. Guardado em configuracoes como '1'/'0'
+            (estoque_excluir_lote_com_dispensacao /
+            estoque_excluir_fornecedor_com_nf); chave ausente = trava
+            LIGADA, então quem não mexer continua com o comportamento
+            seguro da v6.32.0. Carregado no boot em carregarNomeClinica()
+            e lido por excluirLoteEstoque/excluirFornecedor (api.js, real
+            e demo). A restrição de papel não mudou: continua gerente-only.
+            Motivo: rodar teste sem ter que limpar dispensação/NF na mão.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

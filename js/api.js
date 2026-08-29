@@ -409,9 +409,11 @@ async function supabaseApi(acao, dados) {
     // tiver dispensação (reservada ou confirmada) puxando desse lote —
     // apagar nesse caso deixaria o histórico de dispensação inconsistente.
     case 'excluirLoteEstoque': {
-      const { data: dispensacoes } = await supabaseClient.from('dispensacoes').select('id').eq('lote_id', dados.id).limit(1);
-      if(dispensacoes && dispensacoes.length){
-        return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído.'};
+      if(!estado.politicaExclusaoEstoque.loteComDispensacao){
+        const { data: dispensacoes } = await supabaseClient.from('dispensacoes').select('id').eq('lote_id', dados.id).limit(1);
+        if(dispensacoes && dispensacoes.length){
+          return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído. Pra liberar: Configurações → Cadastros do Sistema → Política de exclusão (Estoque).'};
+        }
       }
       const { error } = await supabaseClient.from('estoque_lotes').delete().eq('id', dados.id);
       return error ? {ok:false, erro:error.message} : {ok:true};
@@ -421,9 +423,11 @@ async function supabaseApi(acao, dados) {
     // de NF vinculada (senão o histórico do lote fica com fornecedor_id
     // apontando pra nada).
     case 'excluirFornecedor': {
-      const { data: lotes } = await supabaseClient.from('estoque_lotes').select('id').eq('fornecedor_id', dados.id).limit(1);
-      if(lotes && lotes.length){
-        return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro, ou deixe o fornecedor como está.'};
+      if(!estado.politicaExclusaoEstoque.fornecedorComNf){
+        const { data: lotes } = await supabaseClient.from('estoque_lotes').select('id').eq('fornecedor_id', dados.id).limit(1);
+        if(lotes && lotes.length){
+          return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro. Pra liberar: Configurações → Cadastros do Sistema → Política de exclusão (Estoque).'};
+        }
       }
       const { error } = await supabaseClient.from('fornecedores').delete().eq('id', dados.id);
       return error ? {ok:false, erro:error.message} : {ok:true};
@@ -1115,12 +1119,12 @@ function mockApi(acao, dados) {
       return {ok:true, lotes: lista};
     }
     case 'excluirLoteEstoque': {
-      if(demo.dispensacoes.some(d=>d.lote_id===dados.id)) return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído.'};
+      if(!estado.politicaExclusaoEstoque.loteComDispensacao && demo.dispensacoes.some(d=>d.lote_id===dados.id)) return {ok:false, erro:'Esse lote já tem dispensação vinculada (reservada ou confirmada) — não pode ser excluído. Pra liberar: Configurações → Cadastros do Sistema → Política de exclusão (Estoque).'};
       demo.estoqueLotes = demo.estoqueLotes.filter(l=>l.id!==dados.id);
       return {ok:true};
     }
     case 'excluirFornecedor': {
-      if(demo.estoqueLotes.some(l=>l.fornecedor_id===dados.id)) return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro, ou deixe o fornecedor como está.'};
+      if(!estado.politicaExclusaoEstoque.fornecedorComNf && demo.estoqueLotes.some(l=>l.fornecedor_id===dados.id)) return {ok:false, erro:'Esse fornecedor já tem entrada(s) de NF vinculada(s) — exclua as entradas primeiro. Pra liberar: Configurações → Cadastros do Sistema → Política de exclusão (Estoque).'};
       demo.fornecedores = demo.fornecedores.filter(f=>f.id!==dados.id);
       return {ok:true};
     }

@@ -119,6 +119,12 @@ async function atualizarConfiguracoes(){
     renderizarCamposTravados(podeEditarCadastros);
   }
 
+  // Política de exclusão do Estoque — gerente only, porque só o gerente
+  // enxerga os botões Excluir de Fornecedor/Entrada de NF.
+  const cartaoPolitica = document.getElementById('cartao-politica-exclusao');
+  cartaoPolitica.style.display = estado.papel==='gerente' ? '' : 'none';
+  if(estado.papel==='gerente') renderizarPoliticaExclusao();
+
   const cartaoPlanoContas = document.getElementById('cartao-plano-contas-admin');
   cartaoPlanoContas.style.display = podeVerFinanceiro ? '' : 'none';
   if(podeVerFinanceiro){
@@ -361,6 +367,43 @@ function renderizarCamposTravados(podeEditar){
     estado.camposTravados.profissional = novoProfissional;
     confirmacao.style.color = 'var(--teal-700)';
     confirmacao.textContent = 'Salvo ✓ — já vale pro próximo lançamento/edição aberto.';
+    setTimeout(()=>{ if(confirmacao.textContent.startsWith('Salvo')) confirmacao.textContent=''; }, 4000);
+  });
+}
+
+
+/* ---------------------------------------------------------------------
+   POLÍTICA DE EXCLUSÃO (ESTOQUE) — liga/desliga as travas de integridade
+   que barram excluir lote com dispensação e fornecedor com NF. Guardado
+   em configuracoes como '1'/'0'; ausente = trava ligada. Quem checa é o
+   excluirLoteEstoque/excluirFornecedor no api.js, lendo estado.
+--------------------------------------------------------------------- */
+let politicaExclusaoPronta = false;
+function renderizarPoliticaExclusao(){
+  const chkLote = document.getElementById('chk-excluir-lote-com-dispensacao');
+  const chkForn = document.getElementById('chk-excluir-fornecedor-com-nf');
+  chkLote.checked = estado.politicaExclusaoEstoque.loteComDispensacao;
+  chkForn.checked = estado.politicaExclusaoEstoque.fornecedorComNf;
+
+  if(politicaExclusaoPronta) return;
+  politicaExclusaoPronta = true;
+
+  document.getElementById('botao-salvar-politica-exclusao').addEventListener('click', async ()=>{
+    const confirmacao = document.getElementById('confirmacao-politica-exclusao');
+    confirmacao.style.color = 'var(--ink-400)';
+    confirmacao.textContent = 'Salvando...';
+    try{
+      await api('salvarConfiguracao', {chave:'estoque_excluir_lote_com_dispensacao', valor: chkLote.checked ? '1' : '0'});
+      await api('salvarConfiguracao', {chave:'estoque_excluir_fornecedor_com_nf', valor: chkForn.checked ? '1' : '0'});
+    }catch(e){
+      confirmacao.style.color = 'var(--danger)';
+      confirmacao.textContent = 'Não foi possível salvar.';
+      return;
+    }
+    estado.politicaExclusaoEstoque.loteComDispensacao = chkLote.checked;
+    estado.politicaExclusaoEstoque.fornecedorComNf = chkForn.checked;
+    confirmacao.style.color = 'var(--teal-700)';
+    confirmacao.textContent = 'Salvo ✓ — já vale pra próxima exclusão.';
     setTimeout(()=>{ if(confirmacao.textContent.startsWith('Salvo')) confirmacao.textContent=''; }, 4000);
   });
 }

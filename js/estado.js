@@ -169,5 +169,10 @@ const estado = {
   corPrimaria:null,
   graficoCorPrimaria:null,
   graficoTamanhoTexto:'medio',
-  camposTravados:{atendente:[], profissional:[]}
+  camposTravados:{atendente:[], profissional:[]},
+  // Política de exclusão do Estoque (Configurações → Cadastros do Sistema).
+  // Por padrão as duas travas de integridade ficam LIGADAS (false = não
+  // libera). O gerente pode liberar pra rodar teste sem ter que limpar
+  // dispensação/NF na mão. Ver excluirLoteEstoque/excluirFornecedor em api.js.
+  politicaExclusaoEstoque:{loteComDispensacao:false, fornecedorComNf:false}
 };
