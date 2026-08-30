@@ -1091,6 +1091,12 @@
             vínculo é bloqueada nos dois, com mensagem clara; atendente
             não vê o botão Excluir em nenhum dos dois.
 
+   v6.34.1 — Corrigida troca das abas principais do Estoque. A função
+            trocarSubAbaEstoque foi recriada para ativar Fornecedor,
+            Materiais, Solicitar, Dispensar, Dispensados e Relatório, e
+            também acionar corretamente as sub-abas internas de Fornecedor
+            e Materiais.
+
    v6.34.0 — Reorganização da aba Estoque concluída: Fornecedor com
             sub-abas Cadastro Automático/Manual; Materiais com sub-abas
             Estoque Atual/Cadastro Automático/Manual. Modal de edição

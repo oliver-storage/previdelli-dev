@@ -54,6 +54,22 @@ function prepararSubNavEstoque(){
   prepararSubNav2Estoque();
 }
 
+function trocarSubAbaEstoque(subId){
+  if(!subId || estado.subAbaEstoque===subId) return;
+  estado.subAbaEstoque = subId;
+  document.querySelectorAll('#sub-nav-estoque .sub-aba').forEach(el=>{
+    el.classList.toggle('ativa', el.dataset.sub===subId);
+  });
+  document.querySelectorAll('#painel-estoque > .sub-painel').forEach(painel=>{
+    painel.classList.toggle('ativa', painel.id===subId);
+  });
+  if(SUB2_ESTOQUE[subId]){
+    trocarSubAba2Estoque(subId, sub2Ativa(subId));
+    return;
+  }
+  atualizarSubAbaEstoqueAtiva();
+}
+
 // Liga os cliques das sub-abas internas uma única vez.
 let subNav2EstoquePronta = false;
 function prepararSubNav2Estoque(){
