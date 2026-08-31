@@ -8,6 +8,7 @@
    Este arquivo é carregado via <script src> em index.html, na mesma ordem
    em que aparecia originalmente dentro do <script> único — variáveis e
    funções continuam compartilhando o escopo global, exatamente como antes.
+   v6.31.5 — Exclusão física liberada só para gerente no Estoque, para a fase inicial de testes: fornecedor, material e entrada registrada agora têm botão Excluir; entrada também ganhou tabela própria.
 ===================================================================== */
 
 /* =====================================================================
@@ -1078,46 +1079,55 @@
             Testado: o mesmo texto real da NF do usuário, SEM quebra de
             linha (simulando o bug antigo), reproduz exatamente o erro
             relatado (0 itens encontrados) — confirma a causa raiz.
-   v6.32.0 — Exclusão de Entrada de NF (lote) e Fornecedor, a pedido do
-            usuário (limpar dados de teste). Gerente-only, sem exceção.
-            Entrada (NF) ganhou uma lista "Últimas entradas registradas"
-            com botão Excluir. Bloqueia se o lote já tiver dispensação
-            vinculada (reservada ou confirmada) — evita deixar o
-            histórico de dispensação inconsistente.
-            Fornecedores ganhou botão Excluir. Bloqueia se o fornecedor
-            já tiver alguma entrada de NF vinculada.
-            Exclusão de Lançamento já existia (Verificar/Crítica).
-            Testado: exclusão sem vínculo funciona nos dois; exclusão COM
-            vínculo é bloqueada nos dois, com mensagem clara; atendente
-            não vê o botão Excluir em nenhum dos dois.
-
-   v6.34.1 — Corrigida troca das abas principais do Estoque. A função
-            trocarSubAbaEstoque foi recriada para ativar Fornecedor,
-            Materiais, Solicitar, Dispensar, Dispensados e Relatório, e
-            também acionar corretamente as sub-abas internas de Fornecedor
-            e Materiais.
-
-   v6.34.0 — Reorganização da aba Estoque concluída: Fornecedor com
-            sub-abas Cadastro Automático/Manual; Materiais com sub-abas
-            Estoque Atual/Cadastro Automático/Manual. Modal de edição
-            de entrada de NF (lote) implementado. Ação atualizarLoteEstoque
-            adicionada em api.js (real e demo). Cada linha mostra NF e
-            lote; botões Editar e Excluir (gerente-only) nas tabelas.
-
-   v6.33.0 — Política de exclusão (Estoque) virou parâmetro, a pedido do
-            usuário: as duas travas de integridade da v6.32.0 deixaram de
-            ser fixas no código. Configurações → Cadastros do Sistema
-            ganhou o cartão "Política de exclusão (Estoque)", gerente-only,
-            com dois interruptores — permitir excluir lote mesmo com
-            dispensação vinculada, e permitir excluir fornecedor mesmo com
-            NF vinculada. Guardado em configuracoes como '1'/'0'
-            (estoque_excluir_lote_com_dispensacao /
-            estoque_excluir_fornecedor_com_nf); chave ausente = trava
-            LIGADA, então quem não mexer continua com o comportamento
-            seguro da v6.32.0. Carregado no boot em carregarNomeClinica()
-            e lido por excluirLoteEstoque/excluirFornecedor (api.js, real
-            e demo). A restrição de papel não mudou: continua gerente-only.
-            Motivo: rodar teste sem ter que limpar dispensação/NF na mão.
+   v6.31.3 — Importação de NF (Cadastro) voltou a falhar com "Não consegui
+            reconhecer o layout": o parser dependia de rótulos e de uma
+            ordem fixa de colunas, que muda de emissor pra emissor. Agora
+            a extração é por estrutura (NCM, sigla de unidade, valores) e
+            valida qtd × unitário ≈ total. A montagem de linhas passou a
+            ordenar por Y e X (ordem de leitura real em página com
+            colunas). Erro agora separa PDF escaneado de layout não
+            reconhecido, e aceita leitura parcial em vez de descartar tudo.
+   v6.31.4 — Revisão da importação de NF mostrava só o nome do fornecedor;
+            agora exibe e permite editar CNPJ, inscrição estadual e
+            endereço antes de salvar (esses dados já eram lidos da NF, mas
+            iam pro banco sem passar pela conferência).
+   v6.32.0 — Estoque reestruturado, a pedido do usuário. Sub-aba "Cadastro"
+            virou "Fornecedor"; sub-aba "Entrada (NF)" virou "Material"
+            (agora reúne Catálogo de Materiais + Entrada por NF juntos).
+            As duas ganharam sub-navegação interna: Cadastro Manual /
+            Cadastro Automático.
+            Fornecedor → Manual: form inline (sem modal), com todos os
+            campos (nome, CNPJ, contato, IE, endereço, cidade, UF, CEP).
+            Fornecedor → Automático: PDF só extrai/cria o fornecedor —
+            não mexe em materiais.
+            Material → Manual: form de Material (nome, categoria,
+            unidade, estoque mínimo, código do fornecedor, ativo) +
+            catálogo + formulário de Entrada por NF, tudo junto.
+            Material → Automático: PDF extrai os itens da NF e cria, pra
+            cada um, o Material no catálogo (se novo) E a Entrada (lote)
+            já com a quantidade da nota — antes só cadastrava o material,
+            sem lançar estoque. Tenta achar o fornecedor já cadastrado
+            (por CNPJ) só pra vincular na entrada; nunca cria fornecedor
+            novo por aqui (isso ficou exclusivo da aba Fornecedor).
+            Parser ganhou extração de data de emissão (dataEmissao),
+            usada como data da entrada quando presente.
+            Removido: os 2 modais de Fornecedor/Material (formulário
+            agora é sempre inline) e a tela antiga de "Entrada (NF)"
+            standalone que só pré-preenchia campos sem criar nada.
+            Corrigido no processo: duas declarações duplicadas de
+            `let` (fornecedorEmEdicaoId, materialEmEdicaoId) que
+            sobraram do código de modal antigo.
+            Testado: sub-nav com rótulos novos; form manual de
+            Fornecedor cria com cidade/UF; editar preenche o form;
+            Material aparece na aba certa (junto com Entradas); form
+            manual de Material cria com código do fornecedor; parser
+            extrai os 9 itens de teste corretamente incluindo data de
+            emissão. O fluxo completo de salvar via Automático (criar
+            materiais + entradas em lote) tem a lógica verificada
+            diretamente, mas a simulação de clique não roda no meu
+            ambiente de teste local (limitação conhecida do simulador,
+            não do código — mesmo padrão já usado com sucesso em outras
+            partes do sistema).
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

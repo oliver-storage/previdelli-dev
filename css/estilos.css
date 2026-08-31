@@ -179,20 +179,7 @@
   }
   .sub-aba:hover{color:var(--plum-700);}
   .sub-aba.ativa{color:var(--plum-900);border-bottom-color:var(--plum-700);}
-  /* Segundo nível de sub-abas (ex.: Estoque → Materiais → Estoque Atual /
-     Cadastro Automático / Cadastro Manual). Visual mais leve que o primeiro
-     nível pra deixar claro que está dentro de uma sub-aba, não ao lado. */
-  .sub-painel2{display:none;}
-  .sub-painel2.ativa{display:block;animation:surgir .25s ease;}
-  .sub-nav.interna{
-    gap:6px;margin:-6px 0 20px;border-bottom:none;
-    background:var(--rose-100);border-radius:10px;padding:4px 6px;display:inline-flex;
-  }
-  .sub-nav.interna .sub-aba{
-    font-size:13px;padding:7px 14px;margin-right:0;border-bottom:none;border-radius:8px;
-  }
-  .sub-nav.interna .sub-aba.ativa{background:#fff;color:var(--plum-900);box-shadow:0 1px 3px rgba(0,0,0,.08);}
-  @media print{ .sub-nav{display:none !important;} .sub-painel{display:none;} .sub-painel.ativa{display:block;} .sub-painel2{display:none;} .sub-painel2.ativa{display:block;} }
+  @media print{ .sub-nav{display:none !important;} .sub-painel{display:none;} .sub-painel.ativa{display:block;} }
 
 
   .cabecalho-painel{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:22px;}

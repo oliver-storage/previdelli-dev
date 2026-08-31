@@ -163,12 +163,6 @@ async function carregarNomeClinica(){
     try{
       estado.camposTravados.profissional = JSON.parse((resp.configuracoes && resp.configuracoes.campos_travados_profissional) || '[]');
     }catch(e){ estado.camposTravados.profissional = []; }
-    // Política de exclusão do Estoque — string '1'/'0' na tabela configuracoes.
-    // Ausente = trava ligada (comportamento seguro é o padrão).
-    estado.politicaExclusaoEstoque.loteComDispensacao =
-      ((resp.configuracoes && resp.configuracoes.estoque_excluir_lote_com_dispensacao) || '0') === '1';
-    estado.politicaExclusaoEstoque.fornecedorComNf =
-      ((resp.configuracoes && resp.configuracoes.estoque_excluir_fornecedor_com_nf) || '0') === '1';
     if(estado.logoClinica) aplicarLogoNosSelo(estado.logoClinica);
     if(estado.corPrimaria) aplicarPaletaCor(estado.corPrimaria);
     aplicarTemaGraficos(estado.graficoCorPrimaria, estado.graficoTamanhoTexto);

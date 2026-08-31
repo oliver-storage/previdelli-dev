@@ -169,14 +169,5 @@ const estado = {
   corPrimaria:null,
   graficoCorPrimaria:null,
   graficoTamanhoTexto:'medio',
-  camposTravados:{atendente:[], profissional:[]},
-  // Política de exclusão do Estoque (Configurações → Cadastros do Sistema).
-  // Por padrão as duas travas de integridade ficam LIGADAS (false = não
-  // libera). O gerente pode liberar pra rodar teste sem ter que limpar
-  // dispensação/NF na mão. Ver excluirLoteEstoque/excluirFornecedor em api.js.
-  politicaExclusaoEstoque:{loteComDispensacao:false, fornecedorComNf:false},
-  // Sub-aba de 2º nível aberta dentro de cada sub-aba do Estoque
-  // (Fornecedor e Materiais têm Cadastro Automático/Manual). Vazio = usa
-  // o primeiro da lista em SUB2_ESTOQUE (estoque.js).
-  subAba2Estoque:{}
+  camposTravados:{atendente:[], profissional:[]}
 };
