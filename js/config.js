@@ -1128,6 +1128,15 @@
             ambiente de teste local (limitação conhecida do simulador,
             não do código — mesmo padrão já usado com sucesso em outras
             partes do sistema).
+   v6.32.1 — Ajuste a pedido do usuário: Material → Cadastro Automático
+            volta a criar SÓ o catálogo (não mais entrada/lote junto),
+            espelhando Fornecedor → Automático (que também só cria
+            fornecedor). Pra dar entrada no estoque depois de importar o
+            catálogo, usa "Registrar entrada por Nota Fiscal" (Cadastro
+            Manual). Removida a busca de fornecedor por CNPJ que só
+            servia pra vincular a entrada (não faz mais sentido sem ela).
+            Testado: botão e aviso corretos na revisão; nenhum lote é
+            criado ao salvar; os materiais são cadastrados certinho.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
