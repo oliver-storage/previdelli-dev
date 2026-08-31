@@ -98,7 +98,7 @@ async function carregarFornecedoresEstoque(){
 async function prepararAbaFornecedor(){
   renderizarFornecedores();
   if(!estoqueSubAbaPronta.fornecedor){
-    prepararToggleManualAutomatico('sub-nav-fornecedor', {manual:'fornecedor-modo-manual', automatico:'fornecedor-modo-automatico'});
+    prepararToggleManualAutomatico('sub-nav-fornecedor', {manual:'fornecedor-modo-manual', automatico:'fornecedor-modo-automatico', lista:'fornecedor-modo-lista'});
     prepararFormFornecedor();
     prepararImportacaoFornecedorPdf();
     estoqueSubAbaPronta.fornecedor = true;
@@ -109,7 +109,7 @@ async function prepararAbaMaterial(){
   renderizarCatalogoMateriais();
   await prepararEntradaEstoque();
   if(!estoqueSubAbaPronta.material){
-    prepararToggleManualAutomatico('sub-nav-material', {manual:'material-modo-manual', automatico:'material-modo-automatico'});
+    prepararToggleManualAutomatico('sub-nav-material', {manual:'material-modo-manual', automatico:'material-modo-automatico', lista:'material-modo-lista'});
     prepararFormMaterial();
     prepararImportacaoMaterialPdf();
     estoqueSubAbaPronta.material = true;

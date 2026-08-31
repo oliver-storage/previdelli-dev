@@ -1137,6 +1137,15 @@
             servia pra vincular a entrada (não faz mais sentido sem ela).
             Testado: botão e aviso corretos na revisão; nenhum lote é
             criado ao salvar; os materiais são cadastrados certinho.
+   v6.32.2 — Sub-aba "Lista" adicionada em Fornecedor e Material, a pedido
+            do usuário — 3ª opção ao lado de Cadastro Manual/Automático.
+            Lista de Fornecedores saiu do Cadastro Manual e ganhou aba
+            própria; mesmo pra Catálogo de materiais. Editar/Excluir
+            continuam funcionando igual, só mudaram de lugar. Entrada por
+            NF e Entradas registradas continuam no Cadastro Manual do
+            Material (não fazem parte da "lista" pedida).
+            Testado: as duas tabelas populam certinho, com Editar/Excluir
+            presentes; Entradas continua funcionando sem ser afetada.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

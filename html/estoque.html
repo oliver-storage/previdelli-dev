@@ -15,11 +15,12 @@
         <div class="sub-aba" data-sub="estoque-relatorio">Relatório</div>
       </div>
 
-      <!-- ===== FORNECEDOR (Cadastro Manual / Cadastro Automático) ===== -->
+      <!-- ===== FORNECEDOR (Cadastro Manual / Cadastro Automático / Lista) ===== -->
       <div class="sub-painel ativa" id="estoque-materiais">
         <div class="sub-nav" id="sub-nav-fornecedor" style="margin-bottom:20px;">
           <div class="sub-aba ativa" data-modo="manual">Cadastro Manual</div>
           <div class="sub-aba" data-modo="automatico">Cadastro Automático</div>
+          <div class="sub-aba" data-modo="lista">Lista</div>
         </div>
 
         <div id="fornecedor-modo-manual">
@@ -41,10 +42,6 @@
               <span id="confirmacao-fornecedor-manual" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
             </div>
           </div>
-          <div class="cartao">
-            <h3>Fornecedores cadastrados</h3>
-            <div class="tabela-scroll"><table id="tabela-fornecedores"></table></div>
-          </div>
         </div>
 
         <div id="fornecedor-modo-automatico" style="display:none;">
@@ -63,13 +60,21 @@
             <div id="fornecedor-pdf-revisao" style="display:none;"></div>
           </div>
         </div>
+
+        <div id="fornecedor-modo-lista" style="display:none;">
+          <div class="cartao">
+            <h3>Fornecedores cadastrados</h3>
+            <div class="tabela-scroll"><table id="tabela-fornecedores"></table></div>
+          </div>
+        </div>
       </div>
 
-      <!-- ===== MATERIAL (Cadastro Manual / Cadastro Automático) ===== -->
+      <!-- ===== MATERIAL (Cadastro Manual / Cadastro Automático / Lista) ===== -->
       <div class="sub-painel" id="estoque-entrada">
         <div class="sub-nav" id="sub-nav-material" style="margin-bottom:20px;">
           <div class="sub-aba ativa" data-modo="manual">Cadastro Manual</div>
           <div class="sub-aba" data-modo="automatico">Cadastro Automático</div>
+          <div class="sub-aba" data-modo="lista">Lista</div>
         </div>
 
         <div id="material-modo-manual">
@@ -88,10 +93,6 @@
               <button class="botao sutil" id="botao-cancelar-edicao-material" style="display:none;">Cancelar edição</button>
               <span id="confirmacao-material-manual" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
             </div>
-          </div>
-          <div class="cartao">
-            <h3>Catálogo de materiais</h3>
-            <div class="tabela-scroll"><table id="tabela-materiais"></table></div>
           </div>
 
           <div class="cartao">
@@ -118,6 +119,13 @@
           <div class="cartao">
             <h3>Entradas registradas</h3>
             <div class="tabela-scroll"><table id="tabela-entradas"></table></div>
+          </div>
+        </div>
+
+        <div id="material-modo-lista" style="display:none;">
+          <div class="cartao">
+            <h3>Catálogo de materiais</h3>
+            <div class="tabela-scroll"><table id="tabela-materiais"></table></div>
           </div>
         </div>
 
