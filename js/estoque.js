@@ -755,23 +755,31 @@ function extrairDadosNfPdf(texto){
   const todosCnpj = [...texto.matchAll(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g)].map(m=>m[0]);
   const cnpjEmitente = todosCnpj[0] || null;
 
-  // Nome: bloco rotulado, se existir; senão a linha mais "cara de razão
-  // social" antes do primeiro CNPJ (letras, tamanho razoável, sem ser
-  // rótulo do formulário).
+  // Nome: "RECEBEMOS DE {nome} OS PRODUTOS" é uma frase fixa, sempre no
+  // topo, FORA da área de colunas (emitente/DANFE lado a lado) que
+  // costuma embaralhar a reconstrução de linha — âncora bem mais
+  // confiável que tentar ler o bloco "IDENTIFICAÇÃO DO EMITENTE" direto
+  // (esse já causou nome errado 2x: "DANFE", depois "Fiscal Eletrônica",
+  // por causa do layout em 2 colunas). Bloco antigo vira só fonte de
+  // endereço/fallback.
   let nome = null, endereco = null;
-  const ruido = /^DANFE$|DOCUMENTO AUXILIAR|NOTA FISCAL|ENTRADA|SA[ÍI]DA|CHAVE DE ACESSO|CONSULTA DE AUTENTICIDADE|IDENTIFICA|RECEBEMOS DE|S[ÉE]RIE|FOLHA/i;
+  const ruido = /^DANFE$|DOCUMENTO AUXILIAR|NOTA FISCAL|FISCAL ELETR[ÔO]NICA|ENTRADA|SA[ÍI]DA|CHAVE DE ACESSO|CONSULTA DE AUTENTICIDADE|IDENTIFICA|RECEBEMOS DE|S[ÉE]RIE|FOLHA/i;
+
+  const mRecebemos = texto.match(/RECEBEMOS DE\s+(.+?)\s+OS PRODUTOS/i);
+  if(mRecebemos && mRecebemos[1] && !ruido.test(mRecebemos[1])){
+    nome = mRecebemos[1].trim();
+  }
+
   const blocoEmitente = texto.match(/IDENTIFICA[ÇC][ÃA]O DO EMITENTE\s*([\s\S]+?)(?:DANFE|DOCUMENTO AUXILIAR)/i);
   if(blocoEmitente){
     const ls = blocoEmitente[1].split('\n').map(l=>l.trim()).filter(Boolean);
     // Layout em 2 colunas (comum em DANFE): "IDENTIFICAÇÃO DO EMITENTE" e
     // a caixa "DANFE" ficam lado a lado — na reconstrução de linha por
     // posição Y, às vezes grudam e a primeira linha capturada vira só
-    // ruído ("DANFE", etc.), não o nome de verdade. Pula linhas assim.
-    const candidata = ls.find(l => l.length >= 4 && !ruido.test(l));
-    if(candidata){
-      nome = candidata;
-      endereco = ls.slice(ls.indexOf(candidata)+1).join(', ') || null;
-    }
+    // ruído ("DANFE", "Fiscal Eletrônica", etc.), não o nome de verdade.
+    const candidata = ls.find(l => l.length >= 4 && !ruido.test(l) && (!nome || l !== nome));
+    if(!nome && candidata) nome = candidata;
+    if(candidata) endereco = ls.slice(ls.indexOf(candidata)+1).filter(l=>!ruido.test(l)).join(', ') || null;
   }
   if(!nome){
     const idxCnpj = linhas.findIndex(l => cnpjEmitente && l.includes(cnpjEmitente));

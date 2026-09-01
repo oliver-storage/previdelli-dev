@@ -1326,6 +1326,21 @@
             rótulo, sem nada no meio) — agora extrai o nome certo; sem
             regressão nos casos que já funcionavam (HOSPMEDICA, Cirúrgica
             Medeiros formatado normal).
+   v6.37.2 — v6.37.1 não foi suficiente (usuário testou de novo e o
+            fornecedor veio "Fiscal Eletrônica" — fragmento da caixa
+            "DANFE / Documento Auxiliar da Nota Fiscal Eletrônica", ainda
+            do mesmo problema de layout em 2 colunas). Trocada a
+            estratégia: agora usa "RECEBEMOS DE {nome} OS PRODUTOS" como
+            âncora principal pro nome — frase fixa presente em toda NF-e,
+            no topo, fora da área de colunas que embaralha. O bloco
+            "IDENTIFICAÇÃO DO EMITENTE" virou só fonte de endereço/
+            fallback, não decide mais o nome sozinho.
+            Testado: nome sai certo em texto normal E no cenário
+            exatamente igual ao do print reportado (DANFE, Documento
+            Auxiliar, Fiscal Eletrônica, 0 - ENTRADA todos embaralhados
+            antes do nome de verdade) — endereço fica vazio nesse caso
+            extremo em vez de errado, dá pra completar na revisão. Sem
+            regressão no HOSPMEDICA.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
