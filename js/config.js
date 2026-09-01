@@ -1158,6 +1158,18 @@
             Testado: as 2 abas novas aparecem na ordem certa no menu
             principal; mostram os dados com Editar/Excluir; Fornecedor e
             Material (cadastro) continuam funcionando normalmente.
+   v6.32.4 — Correção do pedido anterior (v6.32.3 entendeu errado de
+            novo): voltou a ser sub-aba DENTRO de Fornecedor e de
+            Material — as 2 abas de nível principal saíram. Cada uma
+            (Fornecedor e Material) agora tem 3 sub-abas internas, nessa
+            ordem: Listagem | Cadastro Manual | Cadastro Automático
+            (Listagem é a primeira, aberta por padrão). Editar/Excluir
+            continuam funcionando igual, só voltaram pro lugar de antes
+            da v6.32.3.
+            Testado: menu principal voltou a ter só as 6 abas de sempre;
+            Listagem de Fornecedores e de Materiais populam certinho com
+            Editar/Excluir; Entradas e o form manual de Material
+            continuam funcionando sem quebrar nada.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
