@@ -1286,6 +1286,14 @@
             permissão) renderizam certas; gerente sempre autorizado,
             atendente só depois de liberado; criar fornecedor com os
             dados extraídos da NF funciona.
+   v6.36.1 — Direitos e Privilégios: colunas Nome/Usuário/Papel agora
+            ficam congeladas (position: sticky) ao rolar a tabela pra
+            direita, a pedido do usuário — sempre dá pra ver de quem é a
+            linha que está mexendo, mesmo com a matriz de permissões
+            enorme. Hover na linha também pinta as 3 colunas congeladas
+            junto, pra não quebrar o efeito visual.
+            Testado: as 3 classes de coluna congelada aparecem certas no
+            cabeçalho e no corpo da tabela; CSS balanceado.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
