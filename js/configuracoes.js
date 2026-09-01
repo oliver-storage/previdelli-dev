@@ -912,18 +912,21 @@ function restaurarPaletaSalva(){
 let temaGraficoPronto = false;
 function prepararTemaGrafico(){
   document.getElementById('config-grafico-tamanho').value = estado.graficoTamanhoTexto || 'medio';
+  document.getElementById('config-grafico-fonte').value = estado.graficoFonte || 'Inter';
   if(estado.graficoCorPrimaria) document.getElementById('config-grafico-cor').value = estado.graficoCorPrimaria;
   if(temaGraficoPronto) return;
 
   document.getElementById('botao-salvar-tema-grafico').addEventListener('click', async ()=>{
     const cor = document.getElementById('config-grafico-cor').value;
     const tamanho = document.getElementById('config-grafico-tamanho').value;
+    const fonte = document.getElementById('config-grafico-fonte').value;
     const confirmacao = document.getElementById('confirmacao-tema-grafico');
     confirmacao.style.color = 'var(--ink-400)';
     confirmacao.textContent = 'Salvando...';
     try{
       await api('salvarConfiguracao', {chave:'grafico_cor_primaria', valor: cor});
       await api('salvarConfiguracao', {chave:'grafico_tamanho_texto', valor: tamanho});
+      await api('salvarConfiguracao', {chave:'grafico_fonte', valor: fonte});
     }catch(e){
       confirmacao.style.color = 'var(--danger)';
       confirmacao.textContent = 'Não foi possível salvar.';
@@ -931,9 +934,10 @@ function prepararTemaGrafico(){
     }
     estado.graficoCorPrimaria = cor;
     estado.graficoTamanhoTexto = tamanho;
-    aplicarTemaGraficos(cor, tamanho);
+    estado.graficoFonte = fonte;
+    aplicarTemaGraficos(cor, tamanho, fonte);
     confirmacao.style.color = 'var(--teal-700)';
-    confirmacao.textContent = 'Salvo ✓ — o tamanho do texto já atualizou; a cor vale a partir do próximo gráfico desenhado.';
+    confirmacao.textContent = 'Salvo ✓ — fonte e tamanho já atualizaram; a cor vale a partir do próximo gráfico desenhado.';
     setTimeout(()=>{ if(confirmacao.textContent.startsWith('Salvo')) confirmacao.textContent=''; }, 3000);
   });
   temaGraficoPronto = true;

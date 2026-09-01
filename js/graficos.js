@@ -50,12 +50,13 @@ function gerarPaletaGraficos(hexBase, n=8){
 // muda a paleta usada pelas roscas/multi-série daqui pra frente, e o
 // tamanho do texto via variável CSS (pega em todo gráfico da página,
 // incluindo os que já estão desenhados).
-function aplicarTemaGraficos(corBase, tamanho){
+function aplicarTemaGraficos(corBase, tamanho, fonte){
   if(corBase) PALETA_GRAFICOS = gerarPaletaGraficos(corBase);
   const tamanhos = { pequeno: [9, 8.5], medio: [10.5, 10], grande: [13, 12] };
   const [tamEixo, tamValor] = tamanhos[tamanho] || tamanhos.medio;
   document.documentElement.style.setProperty('--grafico-tam-eixo', tamEixo+'px');
   document.documentElement.style.setProperty('--grafico-tam-valor', tamValor+'px');
+  if(fonte) document.documentElement.style.setProperty('--grafico-fonte', `'${fonte}'`);
 }
 
 
@@ -182,7 +183,7 @@ function miniGraficoRosca(idContainer, labels, valores, cores=PALETA_GRAFICOS){
       const rMeio = (rExterno+rInterno)/2;
       const xTexto = cx + rMeio*Math.cos(rad(anguloMeio));
       const yTexto = cy + rMeio*Math.sin(rad(anguloMeio));
-      fatias += `<text x="${xTexto.toFixed(1)}" y="${yTexto.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="#00000055" stroke-width="2" paint-order="stroke" style="font-weight:700;font-size:11px;font-family:'IBM Plex Mono',monospace;">${formatarPercentual(pctFatia)}</text>`;
+      fatias += `<text x="${xTexto.toFixed(1)}" y="${yTexto.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="#00000055" stroke-width="2" paint-order="stroke" style="font-weight:700;font-size:11px;font-family:var(--grafico-fonte, 'IBM Plex Mono'),monospace;">${formatarPercentual(pctFatia)}</text>`;
     }
     anguloAtual = anguloFim;
   });

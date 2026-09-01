@@ -1369,6 +1369,19 @@
             Testado: as 5 NFs reais, uma por uma — nome, CNPJ, IE e
             endereço 100% corretos nas 5; itens extraídos em todas que
             tinham produtos.
+   v6.38.0 — Fonte dos gráficos virou configurável, a pedido do usuário.
+            Novo campo no card "Aparência dos gráficos" (Configurações →
+            Identidade), ao lado do tamanho e da cor: dropdown com Inter
+            (padrão), IBM Plex Mono, Fraunces, Georgia, Arial, Verdana.
+            Antes o texto dos gráficos vinha com fonte fixa (Inter nos
+            eixos, IBM Plex Mono nos valores/percentuais), sem opção de
+            trocar. Vale pra todo gráfico do sistema (Análises, RMR,
+            Apresentação, Início) — mesmo alcance que tamanho/cor.
+            Salvo na tabela configuracoes (chave grafico_fonte) — mesmo
+            mecanismo genérico de cor/tamanho, sem SQL novo.
+            Testado: aplicarTemaGraficos seta a variável CSS certa;
+            dropdown carrega a fonte salva; trocar e salvar atualiza
+            banco, estado e CSS ao vivo.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
