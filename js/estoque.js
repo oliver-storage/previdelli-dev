@@ -1119,7 +1119,7 @@ function renderizarRevisaoMaterialPdf(){
     <h4 style="margin:16px 0 8px;">Itens encontrados (${extraido.itens.length}) — NF nº ${extraido.numeroNf||'?'}</h4>
     <p style="font-size:12.5px;color:var(--ink-400);">Só cadastra no catálogo — pra dar entrada no estoque, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
     <div class="tabela-scroll"><table id="tabela-revisao-material">
-      <thead><tr><th></th><th>Código</th><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Situação</th></tr></thead>
+      <thead><tr><th></th><th>Código</th><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Qtd. (NF)</th><th>NF</th><th>Situação</th></tr></thead>
       <tbody>${extraido.itens.map(item=>`
         <tr data-codigo="${item.codigo}" data-ja-existe="${item.jaExiste?'1':'0'}" data-material-id="${item.materialId||''}">
           <td><input type="checkbox" class="chk-incluir-material" ${item.jaExiste?'':'checked'}></td>
@@ -1127,9 +1127,12 @@ function renderizarRevisaoMaterialPdf(){
           <td><input type="text" class="input-revisao-material-nome" value="${item.descricao.replace(/"/g,'&quot;')}" ${item.jaExiste?'disabled':''} style="width:240px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
           <td><select class="input-revisao-material-categoria" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesCategoria()}</select></td>
           <td><select class="input-revisao-material-unidade" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesUnidade(item.unidade)}</select></td>
+          <td class="mono">${item.quantidade!=null?item.quantidade:'—'}</td>
+          <td class="mono">${extraido.numeroNf||'—'}</td>
           <td>${item.jaExiste?'<span style="color:var(--ink-400);">Já no catálogo</span>':'<span style="color:var(--gold-600);">Material novo</span>'}</td>
         </tr>`).join('')}</tbody>
     </table></div>
+    <p style="font-size:12.5px;color:var(--ink-400);">Quantidade e NF são só referência do que veio na nota — pra dar entrada no estoque de verdade, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
     <div style="margin-top:16px;display:flex;align-items:center;gap:10px;">
       <button class="botao" id="botao-salvar-material-automatico">Salvar materiais</button>
       <span id="confirmacao-material-automatico" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>

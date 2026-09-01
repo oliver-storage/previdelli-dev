@@ -1394,6 +1394,15 @@
             dropdown de Unidade com as opções certas; pré-seleção casa
             quando a unidade da NF existe na lista, e cai pro fallback
             quando não existe.
+   v6.38.2 — Revisão da importação de Material ganhou 2 colunas, a
+            pedido do usuário: "Qtd. (NF)" e "NF" — mostram a quantidade
+            e o número da nota que vieram no PDF, só como referência (não
+            editável, não cria entrada de estoque — isso continua
+            exclusivo do "Registrar entrada por Nota Fiscal", decisão da
+            v6.32.1). Aviso reforçado embaixo da tabela deixando claro
+            que são só consulta.
+            Testado com a NF real da HOSPMEDICA: as 2 colunas aparecem
+            certas, com as quantidades no formato da nota (ex.: "5,0000").
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
