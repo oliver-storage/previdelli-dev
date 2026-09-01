@@ -1382,6 +1382,18 @@
             Testado: aplicarTemaGraficos seta a variável CSS certa;
             dropdown carrega a fonte salva; trocar e salvar atualiza
             banco, estado e CSS ao vivo.
+   v6.38.1 — Material → Cadastro Automático (revisão da importação de
+            PDF): Unidade virou dropdown (era texto livre) e Categoria
+            ganhou coluna nova (também dropdown) — as duas alimentadas
+            pelas listas gerenciáveis (Categorias/Unidades de Material,
+            v6.37.0), a pedido do usuário. Unidade tenta casar com o que
+            veio da NF (ex.: "CX" da nota já vem pré-selecionado se
+            existir na lista); se não bater com nada cadastrado, cai pro
+            padrão "unidade".
+            Testado: coluna Categoria aparece com as opções certas;
+            dropdown de Unidade com as opções certas; pré-seleção casa
+            quando a unidade da NF existe na lista, e cai pro fallback
+            quando não existe.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

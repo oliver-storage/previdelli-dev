@@ -1106,18 +1106,27 @@ function renderizarRevisaoMaterialPdf(){
   };
   const blocoFornecedor = avisoFornecedor ? mensagensFornecedor[avisoFornecedor.tipo](avisoFornecedor) : '';
 
+  const opcoesUnidadeBase = estado.listas.unidades_material || [];
+  const opcoesCategoriaBase = estado.listas.categorias_material || [];
+  const montarOpcoesUnidade = valorAtual => {
+    const bate = opcoesUnidadeBase.some(v=>v.toLowerCase()===String(valorAtual||'').toLowerCase());
+    return opcoesUnidadeBase.map(v=>`<option ${v.toLowerCase()===String(valorAtual||'').toLowerCase()?'selected':(!bate && v==='unidade'?'selected':'')}>${v}</option>`).join('');
+  };
+  const montarOpcoesCategoria = () => '<option value="">—</option>' + opcoesCategoriaBase.map(v=>`<option>${v}</option>`).join('');
+
   div.innerHTML = `
     ${blocoFornecedor}
     <h4 style="margin:16px 0 8px;">Itens encontrados (${extraido.itens.length}) — NF nº ${extraido.numeroNf||'?'}</h4>
     <p style="font-size:12.5px;color:var(--ink-400);">Só cadastra no catálogo — pra dar entrada no estoque, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
     <div class="tabela-scroll"><table id="tabela-revisao-material">
-      <thead><tr><th></th><th>Código</th><th>Nome</th><th>Unidade</th><th>Situação</th></tr></thead>
+      <thead><tr><th></th><th>Código</th><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Situação</th></tr></thead>
       <tbody>${extraido.itens.map(item=>`
         <tr data-codigo="${item.codigo}" data-ja-existe="${item.jaExiste?'1':'0'}" data-material-id="${item.materialId||''}">
           <td><input type="checkbox" class="chk-incluir-material" ${item.jaExiste?'':'checked'}></td>
           <td class="mono">${item.codigo}</td>
-          <td><input type="text" class="input-revisao-material-nome" value="${item.descricao.replace(/"/g,'&quot;')}" ${item.jaExiste?'disabled':''} style="width:260px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
-          <td><input type="text" class="input-revisao-material-unidade" value="${item.unidade}" ${item.jaExiste?'disabled':''} style="width:70px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+          <td><input type="text" class="input-revisao-material-nome" value="${item.descricao.replace(/"/g,'&quot;')}" ${item.jaExiste?'disabled':''} style="width:240px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
+          <td><select class="input-revisao-material-categoria" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesCategoria()}</select></td>
+          <td><select class="input-revisao-material-unidade" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesUnidade(item.unidade)}</select></td>
           <td>${item.jaExiste?'<span style="color:var(--ink-400);">Já no catálogo</span>':'<span style="color:var(--gold-600);">Material novo</span>'}</td>
         </tr>`).join('')}</tbody>
     </table></div>
@@ -1139,8 +1148,9 @@ function renderizarRevisaoMaterialPdf(){
       if(jaExiste){ pulados++; continue; }
       const codigo = linha.dataset.codigo;
       const nome = linha.querySelector('.input-revisao-material-nome').value;
+      const categoria = linha.querySelector('.input-revisao-material-categoria').value;
       const unidade = linha.querySelector('.input-revisao-material-unidade').value;
-      const respMat = await api('criarMaterial', {nome, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
+      const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
       if(respMat.ok) materiaisCriados++;
     }
 
