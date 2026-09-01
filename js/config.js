@@ -1232,6 +1232,15 @@
             (dispensado, confirmado, confirmado) — excluir o lote direto
             reverteu as 3 pra pendente, sem perder nenhuma, sem sobrar
             dispensação órfã, e o lote sumiu de vez.
+   v6.34.0 — Estoque → Material: campos "Valor de referência (R$)" e
+            "Código de barras" adicionados, a pedido do usuário. Formulário
+            (Manual), catálogo (Listagem) e API cobertos. "Entradas
+            registradas" (Material → Cadastro Manual) ganhou coluna
+            "Valor", calculada (valor unitário × quantidade).
+            Requer SQL: sql/11_materiais_valor_codigo_barras.sql
+            Testado: material criado/editado com os 2 campos novos;
+            Listagem mostra o valor formatado certo (R$ x,xx); form de
+            edição carrega os dois campos.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

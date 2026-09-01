@@ -127,13 +127,14 @@ function renderizarCatalogoMateriais(){
   const podeExcluir = estado.papel === 'gerente';
   const tabela = document.getElementById('tabela-materiais');
   tabela.innerHTML = `
-    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Estoque mínimo</th><th>Ativo</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
     <tbody>${estoqueCacheMateriais.map(m=>`
       <tr data-id="${m.id}">
         <td>${m.nome}</td>
         <td>${m.categoria||'—'}</td>
         <td>${m.unidade||'unidade'}</td>
         <td class="mono">${m.estoque_minimo||0}</td>
+        <td class="mono">${m.valor_referencia!=null ? 'R$ '+Number(m.valor_referencia).toFixed(2).replace('.',',') : '—'}</td>
         <td>${m.ativo?'<span style="color:var(--teal-700);">Sim</span>':'<span style="color:var(--ink-400);">Não</span>'}</td>
         <td>${podeEditar?`<button class="botao secundario pequeno botao-editar-material" data-id="${m.id}">Editar</button>`:''}${podeExcluir?`<button class="botao sutil pequeno botao-excluir-material" data-id="${m.id}" data-nome="${m.nome.replace(/"/g,'&quot;')}">Excluir</button>`:''}</td>
       </tr>`).join('')}</tbody>`;
@@ -266,6 +267,8 @@ function preencherFormMaterial(material){
   document.getElementById('form-material-unidade').value = material ? (material.unidade||'unidade') : 'unidade';
   document.getElementById('form-material-estoque-minimo').value = material ? (material.estoque_minimo||0) : '';
   document.getElementById('form-material-codigo-fornecedor').value = material ? (material.codigo_fornecedor||'') : '';
+  document.getElementById('form-material-valor-referencia').value = material ? (material.valor_referencia!=null ? material.valor_referencia : '') : '';
+  document.getElementById('form-material-codigo-barras').value = material ? (material.codigo_barras||'') : '';
   document.getElementById('form-material-ativo').checked = material ? material.ativo!==false : true;
   document.getElementById('botao-cancelar-edicao-material').style.display = material ? 'inline-flex' : 'none';
   if(material){
@@ -285,6 +288,8 @@ function prepararFormMaterial(){
       unidade: document.getElementById('form-material-unidade').value || 'unidade',
       estoque_minimo: document.getElementById('form-material-estoque-minimo').value,
       codigo_fornecedor: document.getElementById('form-material-codigo-fornecedor').value,
+      valor_referencia: document.getElementById('form-material-valor-referencia').value,
+      codigo_barras: document.getElementById('form-material-codigo-barras').value,
       ativo: document.getElementById('form-material-ativo').checked
     };
     confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
@@ -344,15 +349,17 @@ async function carregarTabelaEntradas(){
   const tabela = document.getElementById('tabela-entradas');
   if(!tabela) return;
   tabela.innerHTML = lotes.length===0 ? '<tr><td class="vazio">Nenhuma entrada registrada.</td></tr>' : `
-    <thead><tr><th>Material</th><th>NF</th><th>Lote</th><th>Validade</th><th>Qtd.</th><th></th></tr></thead>
+    <thead><tr><th>Material</th><th>NF</th><th>Lote</th><th>Validade</th><th>Qtd.</th><th>Valor</th><th></th></tr></thead>
     <tbody>${lotes.map(l=>{
       const mat = estoqueCacheMateriais.find(m=>m.id===l.material_id) || {};
+      const valorTotal = l.valor_unitario ? (Number(l.valor_unitario) * Number(l.quantidade_entrada||l.quantidade_atual)) : null;
       return `<tr data-id="${l.id}">
         <td>${mat.nome||'—'}</td>
         <td class="mono">${l.nota_fiscal||'—'}</td>
         <td class="mono">${l.lote||'—'}</td>
         <td>${l.validade||'—'}</td>
         <td class="mono">${l.quantidade_atual}</td>
+        <td class="mono">${valorTotal!=null ? 'R$ '+valorTotal.toFixed(2).replace('.',',') : '—'}</td>
         <td>${podeExcluir?`<button class="botao sutil pequeno botao-excluir-entrada" data-id="${l.id}">Excluir</button>`:''}</td>
       </tr>`;
     }).join('')}</tbody>`;

@@ -372,7 +372,7 @@ async function supabaseApi(acao, dados) {
     }
     case 'criarMaterial': {
       const { data, error } = await supabaseClient.from('materiais')
-        .insert({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, codigo_fornecedor:dados.codigo_fornecedor||null, nf_origem:dados.nf_origem||null})
+        .insert({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, codigo_fornecedor:dados.codigo_fornecedor||null, nf_origem:dados.nf_origem||null, valor_referencia: dados.valor_referencia ? Number(dados.valor_referencia) : null, codigo_barras: dados.codigo_barras||null})
         .select().single();
       if(error) return {ok:false, erro:error.message};
       return {ok:true, material:data};
@@ -384,7 +384,7 @@ async function supabaseApi(acao, dados) {
     }
     case 'atualizarMaterial': {
       const { error } = await supabaseClient.from('materiais')
-        .update({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:dados.ativo!==false})
+        .update({nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:dados.ativo!==false, valor_referencia: dados.valor_referencia ? Number(dados.valor_referencia) : null, codigo_barras: dados.codigo_barras||null})
         .eq('id', dados.id);
       return error ? {ok:false, erro:error.message} : {ok:true};
     }
@@ -1144,7 +1144,7 @@ function mockApi(acao, dados) {
     }
     case 'listarMateriais': return {ok:true, materiais: demo.materiais.slice().sort((a,b)=>a.nome.localeCompare(b.nome))};
     case 'criarMaterial': {
-      const novo = {id:'demo-mat-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:true, codigo_fornecedor:dados.codigo_fornecedor||null, nf_origem:dados.nf_origem||null};
+      const novo = {id:'demo-mat-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), nome:dados.nome, categoria:dados.categoria||null, unidade:dados.unidade||'unidade', estoque_minimo:Number(dados.estoque_minimo)||0, ativo:true, codigo_fornecedor:dados.codigo_fornecedor||null, nf_origem:dados.nf_origem||null, valor_referencia: dados.valor_referencia ? Number(dados.valor_referencia) : null, codigo_barras: dados.codigo_barras||null};
       demo.materiais.push(novo);
       return {ok:true, material:novo};
     }
@@ -1156,6 +1156,8 @@ function mockApi(acao, dados) {
       if(!m) return {ok:false, erro:'Material não encontrado.'};
       m.nome=dados.nome; m.categoria=dados.categoria||null; m.unidade=dados.unidade||'unidade';
       m.estoque_minimo=Number(dados.estoque_minimo)||0; m.ativo=dados.ativo!==false;
+      m.valor_referencia = dados.valor_referencia ? Number(dados.valor_referencia) : null;
+      m.codigo_barras = dados.codigo_barras||null;
       return {ok:true};
     }
     case 'excluirMaterial': {
