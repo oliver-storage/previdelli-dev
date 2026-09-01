@@ -112,7 +112,7 @@ async function prepararAbaFornecedor(){
 }
 
 async function prepararAbaMaterial(){
-  renderizarCatalogoMateriais();
+  await renderizarCatalogoMateriais();
   await prepararEntradaEstoque();
   if(!estoqueSubAbaPronta.material){
     prepararToggleManualAutomatico('sub-nav-material', {lista:'material-modo-lista', manual:'material-modo-manual', automatico:'material-modo-automatico'});
@@ -122,22 +122,35 @@ async function prepararAbaMaterial(){
   }
 }
 
-function renderizarCatalogoMateriais(){
+async function renderizarCatalogoMateriais(){
   const podeEditar = temPermissao('editar_estoque');
   const podeExcluir = temPermissao('excluir_material_estoque');
   const tabela = document.getElementById('tabela-materiais');
+
+  // Quantidade em estoque = soma de todos os lotes (Entradas) daquele
+  // material — vem da NF, não é um campo do cadastro do material em si.
+  const respPosicao = await api('obterPosicaoEstoque', {});
+  const lotes = respPosicao.ok ? (respPosicao.lotes||[]) : [];
+  const quantidadePorMaterial = {};
+  lotes.forEach(l=>{ quantidadePorMaterial[l.material_id] = (quantidadePorMaterial[l.material_id]||0) + Number(l.quantidade_atual||0); });
+
   tabela.innerHTML = `
-    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
-    <tbody>${estoqueCacheMateriais.map(m=>`
+    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Qtd. em estoque</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
+    <tbody>${estoqueCacheMateriais.map(m=>{
+      const qtd = quantidadePorMaterial[m.id] || 0;
+      const abaixoDoMinimo = qtd < Number(m.estoque_minimo||0);
+      return `
       <tr data-id="${m.id}">
         <td>${m.nome}</td>
         <td>${m.categoria||'—'}</td>
         <td>${m.unidade||'unidade'}</td>
+        <td class="mono" style="${abaixoDoMinimo?'color:var(--danger);font-weight:600;':''}">${qtd}${abaixoDoMinimo?' ⚠':''}</td>
         <td class="mono">${m.estoque_minimo||0}</td>
         <td class="mono">${m.valor_referencia!=null ? 'R$ '+Number(m.valor_referencia).toFixed(2).replace('.',',') : '—'}</td>
         <td>${m.ativo?'<span style="color:var(--teal-700);">Sim</span>':'<span style="color:var(--ink-400);">Não</span>'}</td>
         <td>${podeEditar?`<button class="botao secundario pequeno botao-editar-material" data-id="${m.id}">Editar</button>`:''}${podeExcluir?`<button class="botao sutil pequeno botao-excluir-material" data-id="${m.id}" data-nome="${m.nome.replace(/"/g,'&quot;')}">Excluir</button>`:''}</td>
-      </tr>`).join('')}</tbody>`;
+      </tr>`;
+    }).join('')}</tbody>`;
 
   if(podeEditar){
     tabela.querySelectorAll('.botao-editar-material').forEach(botao=>{
@@ -198,7 +211,7 @@ async function excluirMaterialEstoque(id, nome){
   const resp = await api('excluirMaterial', {id});
   if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
   await carregarMateriaisEstoque();
-  renderizarCatalogoMateriais();
+  await renderizarCatalogoMateriais();
 }
 
 
@@ -278,6 +291,10 @@ function preencherFormMaterial(material){
 }
 
 function prepararFormMaterial(){
+  document.getElementById('form-material-categoria').innerHTML = '<option value="">—</option>' +
+    (estado.listas.categorias_material||[]).map(v=>`<option>${v}</option>`).join('');
+  document.getElementById('form-material-unidade').innerHTML =
+    (estado.listas.unidades_material||[]).map(v=>`<option>${v}</option>`).join('');
   document.getElementById('botao-cancelar-edicao-material').addEventListener('click', ()=>preencherFormMaterial(null));
   document.getElementById('botao-salvar-material-manual').addEventListener('click', async ()=>{
     const nome = document.getElementById('form-material-nome').value.trim();
@@ -300,7 +317,7 @@ function prepararFormMaterial(){
     confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Salvo ✓';
     preencherFormMaterial(null);
     await carregarMateriaisEstoque();
-    renderizarCatalogoMateriais();
+    await renderizarCatalogoMateriais();
     setTimeout(()=>{ if(confirmacao.textContent==='Salvo ✓') confirmacao.textContent=''; }, 2500);
   });
 }
@@ -1101,7 +1118,7 @@ function renderizarRevisaoMaterialPdf(){
     }
 
     await carregarMateriaisEstoque();
-    renderizarCatalogoMateriais();
+    await renderizarCatalogoMateriais();
     await carregarTabelaEntradas();
 
     confirmacao.style.color = 'var(--teal-700)';

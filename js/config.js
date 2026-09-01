@@ -1294,6 +1294,26 @@
             junto, pra não quebrar o efeito visual.
             Testado: as 3 classes de coluna congelada aparecem certas no
             cabeçalho e no corpo da tabela; CSS balanceado.
+   v6.37.0 — Estoque → Material: 2 melhorias a pedido do usuário.
+            (1) Listagem de materiais ganhou coluna "Qtd. em estoque" —
+            soma de todos os lotes (Entradas/NF) daquele material.
+            Destaca em vermelho com ⚠ quando fica abaixo do estoque
+            mínimo cadastrado. renderizarCatalogoMateriais virou async
+            (busca obterPosicaoEstoque toda vez que renderiza).
+            (2) Categoria e Unidade do Material deixaram de ser texto
+            livre — agora são dropdowns, alimentados por 2 listas novas
+            gerenciáveis em Configurações → Cadastros do Sistema →
+            Listas: "Categorias de Material" e "Unidades de Material".
+            Populadas com sugestões prontas (Luvas, Curativos, Seringas e
+            Agulhas... / unidade, caixa, pacote, frasco...) — edite/
+            apague à vontade, é só ponto de partida.
+            Requer SQL: sql/12_listas_categorias_unidades_material.sql
+            (libera os 2 tipos novos na constraint de listas, semeia com
+            os valores padrão).
+            Testado: estado.listas carrega os 2 tipos novos; dropdowns do
+            form populam certo; os 2 tipos aparecem no seletor de Listas
+            do Sistema; material criado com categoria/unidade escolhidas
+            no dropdown salva certo.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

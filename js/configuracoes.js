@@ -25,7 +25,9 @@ const DEFINICAO_LISTAS_CONFIG = [
   {chave:'formas_pagamento', rotulo:'Formas de pagamento'},
   {chave:'biopsias_frascos', rotulo:'Biópsia (frascos)'},
   {chave:'exames', rotulo:'Exames'},
-  {chave:'especialidades', rotulo:'Especialidades (profissionais)'}
+  {chave:'especialidades', rotulo:'Especialidades (profissionais)'},
+  {chave:'categorias_material', rotulo:'Categorias de Material (Estoque)'},
+  {chave:'unidades_material', rotulo:'Unidades de Material (Estoque)'}
 ];
 let listaConfigSelectPronto = false;
 
