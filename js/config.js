@@ -1179,6 +1179,36 @@
             continua sem forçar troca de aba (fica onde a pessoa estava).
             Testado: Editar troca a sub-aba e preenche o formulário certo,
             nos dois (Fornecedor e Material); Cancelar não mexe na aba.
+   v6.33.0 — Desfazer e Excluir, a pedido do usuário, em Solicitar,
+            Dispensar e Dispensados. Cobre os 4 estados de uma
+            solicitação (pendente/dispensado/confirmado/negado), sempre
+            devolvendo estoque quando preciso — nunca deixa quantidade
+            "perdida":
+            • Solicitar (Minhas solicitações): botão Cancelar numa
+              pendente — só remove, sem mexer em estoque.
+            • Dispensar (pendentes): Excluir ao lado de Dispensar/Negar.
+            • Dispensados: Desfazer (volta um estado) e Excluir (remove
+              de vez), pros dois status (dispensado/confirmado):
+              - Desfazer dispensação → volta pra pendente; reserva nunca
+                tinha baixado estoque, então não devolve nada.
+              - Desfazer confirmação → devolve a quantidade pro lote,
+                volta pra "aguardando confirmação".
+              - Excluir dispensado → libera a reserva, remove.
+              - Excluir confirmado → devolve a quantidade pro lote,
+                remove.
+            Desfazer/Excluir em Dispensados ficou restrito a quem tem
+            permissão de dispensar (farmácia/gerente) — mexer numa baixa
+            de estoque já feita é mais sensível que só confirmar
+            recebimento, então não abri pra qualquer solicitante.
+            Relatório não ganhou nada — é só visualização (posição de
+            estoque), não tem registro individual pra desfazer/excluir.
+            Novas rotas: excluirSolicitacaoMaterial,
+            desfazerDispensacaoSolicitacao, desfazerConfirmacaoSolicitacao.
+            Testado: 12 cenários — excluir pendente (sem tocar estoque),
+            desfazer dispensação (sem tocar estoque, volta pendente),
+            confirmar → desfazer confirmação (devolve quantidade exata,
+            volta pra dispensado), confirmar → excluir (devolve e some de
+            vez), e validação bloqueando desfazer algo no status errado.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

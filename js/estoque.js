@@ -420,8 +420,17 @@ async function carregarMinhasSolicitacoes(){
   const tabela = document.getElementById('tabela-minhas-solicitacoes');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nenhuma solicitação pendente.</td></tr>' : `
-    <thead><tr><th>Material</th><th>Qtd.</th><th>Atendimento</th><th>Exame</th><th>Solicitado em</th></tr></thead>
-    <tbody>${lista.map(s=>`<tr><td>${(s.materiais||{}).nome||'—'}</td><td>${s.quantidade}</td><td>${s.procedimento||'—'}</td><td>${s.exame||'—'}</td><td>${new Date(s.solicitado_em).toLocaleDateString('pt-BR')}</td></tr>`).join('')}</tbody>`;
+    <thead><tr><th>Material</th><th>Qtd.</th><th>Atendimento</th><th>Exame</th><th>Solicitado em</th><th></th></tr></thead>
+    <tbody>${lista.map(s=>`<tr data-id="${s.id}"><td>${(s.materiais||{}).nome||'—'}</td><td>${s.quantidade}</td><td>${s.procedimento||'—'}</td><td>${s.exame||'—'}</td><td>${new Date(s.solicitado_em).toLocaleDateString('pt-BR')}</td><td><button class="botao sutil pequeno botao-cancelar-solicitacao" data-id="${s.id}">Cancelar</button></td></tr>`).join('')}</tbody>`;
+
+  tabela.querySelectorAll('.botao-cancelar-solicitacao').forEach(botao=>{
+    botao.addEventListener('click', async ()=>{
+      if(!confirm('Cancelar essa solicitação?')) return;
+      const resp2 = await api('excluirSolicitacaoMaterial', {id: botao.dataset.id});
+      if(!resp2.ok){ alert(resp2.erro || 'Não foi possível cancelar.'); return; }
+      await carregarMinhasSolicitacoes();
+    });
+  });
 }
 
 
@@ -446,6 +455,7 @@ async function carregarSolicitacoesPendentes(){
         <td style="display:flex;gap:6px;">
           <button class="botao secundario pequeno botao-dispensar-solicitacao">Dispensar</button>
           <button class="botao sutil pequeno botao-negar-solicitacao">Negar</button>
+          <button class="botao sutil pequeno botao-excluir-solicitacao">Excluir</button>
         </td>
       </tr>`).join('')}</tbody>`;
 
@@ -463,6 +473,15 @@ async function carregarSolicitacoesPendentes(){
       const id = ev.target.closest('tr').dataset.id;
       const motivo = prompt('Motivo da negativa (opcional):') || '';
       await api('negarSolicitacaoMaterial', {id, motivo});
+      await carregarSolicitacoesPendentes();
+    });
+  });
+  tabela.querySelectorAll('.botao-excluir-solicitacao').forEach(botao=>{
+    botao.addEventListener('click', async (ev)=>{
+      if(!confirm('Excluir essa solicitação? Essa ação não pode ser desfeita.')) return;
+      const id = ev.target.closest('tr').dataset.id;
+      const resp = await api('excluirSolicitacaoMaterial', {id});
+      if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
       await carregarSolicitacoesPendentes();
     });
   });
@@ -575,9 +594,12 @@ async function carregarDispensados(){
   const podeConfirmarGeral = temPermissao('dispensar_estoque');
 
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nada aqui.</td></tr>' : `
-    <thead><tr><th></th><th>Material</th><th>Qtd.</th><th>Solicitante</th><th>Dispensado em</th><th>Status</th><th>Recebido por / Observação</th></tr></thead>
+    <thead><tr><th></th><th>Material</th><th>Qtd.</th><th>Solicitante</th><th>Dispensado em</th><th>Status</th><th>Recebido por / Observação</th><th></th></tr></thead>
     <tbody>${lista.map(s=>{
       const podeConfirmarEsta = s.status==='dispensado' && (podeConfirmarGeral || s.solicitado_por===estado.usuario);
+      const botaoDesfazer = s.status==='dispensado'
+        ? `<button class="botao sutil pequeno botao-desfazer-dispensados" data-id="${s.id}" data-acao="dispensacao">Desfazer</button>`
+        : `<button class="botao sutil pequeno botao-desfazer-dispensados" data-id="${s.id}" data-acao="confirmacao">Desfazer</button>`;
       return `<tr data-id="${s.id}">
         <td>${podeConfirmarEsta?`<input type="checkbox" class="chk-dispensado-recebido" data-id="${s.id}">`:''}</td>
         <td>${(s.materiais||{}).nome||'—'}</td>
@@ -586,11 +608,37 @@ async function carregarDispensados(){
         <td>${new Date(s.solicitado_em).toLocaleDateString('pt-BR')}</td>
         <td>${s.status==='confirmado'?'<span style="color:var(--teal-700);">Confirmado</span>':'<span style="color:var(--gold-600);">Aguardando confirmação</span>'}</td>
         <td>${s.status==='confirmado'?`${s.confirmado_por||'—'}${s.observacao_recebimento?' — '+s.observacao_recebimento:''}`:'—'}</td>
+        <td style="display:flex;gap:6px;">
+          ${podeConfirmarGeral?botaoDesfazer:''}
+          ${podeConfirmarGeral?`<button class="botao sutil pequeno botao-excluir-dispensados" data-id="${s.id}">Excluir</button>`:''}
+        </td>
       </tr>`;
     }).join('')}</tbody>`;
 
   const temCheckboxVisivel = tabela.querySelectorAll('.chk-dispensado-recebido').length > 0;
   document.getElementById('dispensados-acoes-confirmacao').style.display = temCheckboxVisivel ? 'block' : 'none';
+
+  tabela.querySelectorAll('.botao-desfazer-dispensados').forEach(botao=>{
+    botao.addEventListener('click', async ()=>{
+      const acao = botao.dataset.acao;
+      const aviso = acao==='confirmacao'
+        ? 'Desfazer a confirmação devolve a quantidade pro estoque e volta pra "aguardando confirmação". Confirma?'
+        : 'Desfazer a dispensação libera a reserva e volta a solicitação pra "pendente". Confirma?';
+      if(!confirm(aviso)) return;
+      const rota = acao==='confirmacao' ? 'desfazerConfirmacaoSolicitacao' : 'desfazerDispensacaoSolicitacao';
+      const resp = await api(rota, {id: botao.dataset.id});
+      if(!resp.ok){ alert(resp.erro || 'Não foi possível desfazer.'); return; }
+      await carregarDispensados();
+    });
+  });
+  tabela.querySelectorAll('.botao-excluir-dispensados').forEach(botao=>{
+    botao.addEventListener('click', async ()=>{
+      if(!confirm('Excluir esse registro? Se já tinha baixado do estoque, a quantidade volta pro lote. Essa ação não pode ser desfeita.')) return;
+      const resp = await api('excluirSolicitacaoMaterial', {id: botao.dataset.id});
+      if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
+      await carregarDispensados();
+    });
+  });
 }
 
 

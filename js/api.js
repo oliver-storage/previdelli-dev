@@ -525,6 +525,62 @@ async function supabaseApi(acao, dados) {
       return errStatus ? {ok:false, erro:errStatus.message} : {ok:true};
     }
 
+    // Desfaz uma dispensação (reserva) — volta pra 'pendente' e apaga as
+    // reservas (dispensacoes status='reservado'). Não mexe em
+    // quantidade_atual do lote, porque reservar nunca chegou a descontar
+    // — só a confirmação desconta de verdade.
+    case 'desfazerDispensacaoSolicitacao': {
+      const { data: solicitacao } = await supabaseClient.from('solicitacoes_material').select('status').eq('id', dados.id).maybeSingle();
+      if(!solicitacao) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(solicitacao.status !== 'dispensado') return {ok:false, erro:'Só dá pra desfazer uma dispensação que ainda está aguardando confirmação.'};
+      const { error: errDel } = await supabaseClient.from('dispensacoes').delete().eq('solicitacao_id', dados.id).eq('status', 'reservado');
+      if(errDel) return {ok:false, erro:errDel.message};
+      const { error: errUpd } = await supabaseClient.from('solicitacoes_material').update({status:'pendente'}).eq('id', dados.id);
+      return errUpd ? {ok:false, erro:errUpd.message} : {ok:true};
+    }
+
+    // Desfaz uma confirmação — devolve a quantidade pro lote (soma de
+    // volta em quantidade_atual), volta as reservas pra 'reservado', e a
+    // solicitação volta pra 'dispensado' (aguardando confirmação de novo).
+    case 'desfazerConfirmacaoSolicitacao': {
+      const { data: solicitacao } = await supabaseClient.from('solicitacoes_material').select('status').eq('id', dados.id).maybeSingle();
+      if(!solicitacao) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(solicitacao.status !== 'confirmado') return {ok:false, erro:'Só dá pra desfazer uma confirmação já feita.'};
+      const { data: confirmadas } = await supabaseClient.from('dispensacoes').select('*').eq('solicitacao_id', dados.id).eq('status', 'confirmado');
+      for(const disp of (confirmadas||[])){
+        const { data: lote } = await supabaseClient.from('estoque_lotes').select('quantidade_atual').eq('id', disp.lote_id).maybeSingle();
+        if(!lote) continue;
+        await supabaseClient.from('estoque_lotes').update({quantidade_atual: Number(lote.quantidade_atual) + Number(disp.quantidade)}).eq('id', disp.lote_id);
+        await supabaseClient.from('dispensacoes').update({status:'reservado'}).eq('id', disp.id);
+      }
+      const { error: errUpd } = await supabaseClient.from('solicitacoes_material').update({
+        status:'dispensado', confirmado_por:null, confirmado_em:null, observacao_recebimento:null
+      }).eq('id', dados.id);
+      return errUpd ? {ok:false, erro:errUpd.message} : {ok:true};
+    }
+
+    // Excluir de vez — cobre os 4 estados possíveis. Se tiver reserva ou
+    // confirmação em aberto, devolve o estoque antes de apagar o registro
+    // (nunca deixa quantidade "perdida" no ar).
+    case 'excluirSolicitacaoMaterial': {
+      const { data: solicitacao } = await supabaseClient.from('solicitacoes_material').select('status').eq('id', dados.id).maybeSingle();
+      if(!solicitacao) return {ok:false, erro:'Solicitação não encontrada.'};
+
+      if(solicitacao.status === 'confirmado'){
+        const { data: confirmadas } = await supabaseClient.from('dispensacoes').select('*').eq('solicitacao_id', dados.id).eq('status', 'confirmado');
+        for(const disp of (confirmadas||[])){
+          const { data: lote } = await supabaseClient.from('estoque_lotes').select('quantidade_atual').eq('id', disp.lote_id).maybeSingle();
+          if(!lote) continue;
+          await supabaseClient.from('estoque_lotes').update({quantidade_atual: Number(lote.quantidade_atual) + Number(disp.quantidade)}).eq('id', disp.lote_id);
+        }
+      }
+      // Reservado (dispensado) ou confirmado (já devolvido acima) — apaga
+      // as linhas de dispensacoes de qualquer forma, não sobra órfã.
+      await supabaseClient.from('dispensacoes').delete().eq('solicitacao_id', dados.id);
+      const { error: errDel } = await supabaseClient.from('solicitacoes_material').delete().eq('id', dados.id);
+      return errDel ? {ok:false, erro:errDel.message} : {ok:true};
+    }
+
 
     case 'buscarPacientes': {
       const termo = String(dados.termo||'').trim();
@@ -1179,6 +1235,40 @@ function mockApi(acao, dados) {
       s.confirmado_por = dados.confirmado_por||null;
       s.confirmado_em = new Date().toISOString();
       s.observacao_recebimento = dados.observacao||null;
+      return {ok:true};
+    }
+    case 'desfazerDispensacaoSolicitacao': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(s.status!=='dispensado') return {ok:false, erro:'Só dá pra desfazer uma dispensação que ainda está aguardando confirmação.'};
+      demo.dispensacoes = demo.dispensacoes.filter(d=>!(d.solicitacao_id===s.id && d.status==='reservado'));
+      s.status = 'pendente';
+      return {ok:true};
+    }
+    case 'desfazerConfirmacaoSolicitacao': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(s.status!=='confirmado') return {ok:false, erro:'Só dá pra desfazer uma confirmação já feita.'};
+      demo.dispensacoes.filter(d=>d.solicitacao_id===s.id && d.status==='confirmado').forEach(d=>{
+        const lote = demo.estoqueLotes.find(l=>l.id===d.lote_id);
+        if(lote) lote.quantidade_atual += Number(d.quantidade);
+        d.status = 'reservado';
+      });
+      s.status = 'dispensado';
+      s.confirmado_por = null; s.confirmado_em = null; s.observacao_recebimento = null;
+      return {ok:true};
+    }
+    case 'excluirSolicitacaoMaterial': {
+      const s = demo.solicitacoesMaterial.find(x=>x.id===dados.id);
+      if(!s) return {ok:false, erro:'Solicitação não encontrada.'};
+      if(s.status==='confirmado'){
+        demo.dispensacoes.filter(d=>d.solicitacao_id===s.id && d.status==='confirmado').forEach(d=>{
+          const lote = demo.estoqueLotes.find(l=>l.id===d.lote_id);
+          if(lote) lote.quantidade_atual += Number(d.quantidade);
+        });
+      }
+      demo.dispensacoes = demo.dispensacoes.filter(d=>d.solicitacao_id!==s.id);
+      demo.solicitacoesMaterial = demo.solicitacoesMaterial.filter(x=>x.id!==s.id);
       return {ok:true};
     }
 
