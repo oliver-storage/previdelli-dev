@@ -1209,6 +1209,29 @@
             confirmar → desfazer confirmação (devolve quantidade exata,
             volta pra dispensado), confirmar → excluir (devolve e some de
             vez), e validação bloqueando desfazer algo no status errado.
+   v6.33.1 — Causa raiz achada (usuário reportou que atualizou e não
+            conseguiu excluir um lote): dispensacoes.lote_id tem FK sem
+            ON DELETE CASCADE — o Supabase recusa excluir um lote/entrada
+            se tiver QUALQUER dispensação vinculada, mesmo indireta.
+            Corrigido em excluirEntradaEstoque: agora reverte em cascata
+            sozinho — acha todas as dispensações do lote, TODAS as
+            solicitações donas delas voltam pra "pendente" (não perde
+            pedido nenhum, só desfaz o vínculo com aquele lote
+            específico), apaga as dispensações, e só depois exclui o
+            lote. Um clique só resolve, sem precisar caçar cada
+            solicitação manualmente em Dispensados primeiro (isso
+            continua disponível também, pra quem quiser reverter s
+            só uma solicitação por vez — Solicitar/Dispensar/Dispensados,
+            da v6.33.0).
+            Corrigido de brinde: geração de ID no modo demo
+            (criarSolicitacaoMaterial) podia colidir se duas solicitações
+            fossem criadas no mesmo milissegundo — achei isso testando o
+            cenário de 3 solicitações no mesmo lote. Sem impacto no
+            Supabase real (usa uuid), só no modo demo/teste.
+            Testado: lote com 3 solicitações em 3 estados diferentes
+            (dispensado, confirmado, confirmado) — excluir o lote direto
+            reverteu as 3 pra pendente, sem perder nenhuma, sem sobrar
+            dispensação órfã, e o lote sumiu de vez.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

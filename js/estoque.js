@@ -365,9 +365,12 @@ async function carregarTabelaEntradas(){
 
 async function excluirEntradaEstoque(id){
   if(estado.papel !== 'gerente') return;
-  if(!confirm('Excluir essa entrada do banco?')) return;
+  if(!confirm('Excluir essa entrada? Se algum pedido já usou esse lote, ele volta pra "pendente" (não perde o pedido) e o vínculo é desfeito. Essa ação não pode ser desfeita.')) return;
   const resp = await api('excluirEntradaEstoque', {id});
   if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
+  if(resp.solicitacoesRevertidas > 0){
+    alert(`Entrada excluída. ${resp.solicitacoesRevertidas} solicitação(ões) que usavam esse lote voltaram pra "pendente".`);
+  }
   await carregarTabelaEntradas();
 }
 

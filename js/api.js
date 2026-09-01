@@ -392,9 +392,25 @@ async function supabaseApi(acao, dados) {
       const { error } = await supabaseClient.from('materiais').delete().eq('id', dados.id);
       return error ? {ok:false, erro:error.message} : {ok:true};
     }
+    // Excluir um lote/entrada — reverte tudo que estiver pendurado nele
+    // primeiro (senão o banco recusa: dispensacoes.lote_id tem FK sem
+    // cascade). Pra cada dispensação vinculada, a solicitação volta pra
+    // 'pendente' (não perde o pedido, só desfaz o vínculo com esse lote
+    // específico) e a dispensação é apagada. Só depois disso o lote sai.
     case 'excluirEntradaEstoque': {
+      const { data: dispensacoes } = await supabaseClient.from('dispensacoes').select('*').eq('lote_id', dados.id);
+      const solicitacoesRevertidas = new Set();
+      for(const disp of (dispensacoes||[])){
+        if(!solicitacoesRevertidas.has(disp.solicitacao_id)){
+          await supabaseClient.from('solicitacoes_material').update({
+            status:'pendente', confirmado_por:null, confirmado_em:null, observacao_recebimento:null
+          }).eq('id', disp.solicitacao_id);
+          solicitacoesRevertidas.add(disp.solicitacao_id);
+        }
+      }
+      await supabaseClient.from('dispensacoes').delete().eq('lote_id', dados.id);
       const { error } = await supabaseClient.from('estoque_lotes').delete().eq('id', dados.id);
-      return error ? {ok:false, erro:error.message} : {ok:true};
+      return error ? {ok:false, erro:error.message} : {ok:true, solicitacoesRevertidas: solicitacoesRevertidas.size};
     }
 
     // ---------- ESTOQUE — Entrada por NF (cria um lote) ----------
@@ -1151,8 +1167,18 @@ function mockApi(acao, dados) {
     case 'excluirEntradaEstoque': {
       const idx = demo.estoqueLotes.findIndex(x=>x.id===dados.id);
       if(idx===-1) return {ok:false, erro:'Entrada não encontrada.'};
+      const dispensacoesDoLote = demo.dispensacoes.filter(d=>d.lote_id===dados.id);
+      const solicitacoesRevertidas = new Set();
+      dispensacoesDoLote.forEach(disp=>{
+        if(!solicitacoesRevertidas.has(disp.solicitacao_id)){
+          const s = demo.solicitacoesMaterial.find(x=>x.id===disp.solicitacao_id);
+          if(s){ s.status='pendente'; s.confirmado_por=null; s.confirmado_em=null; s.observacao_recebimento=null; }
+          solicitacoesRevertidas.add(disp.solicitacao_id);
+        }
+      });
+      demo.dispensacoes = demo.dispensacoes.filter(d=>d.lote_id!==dados.id);
       demo.estoqueLotes.splice(idx, 1);
-      return {ok:true};
+      return {ok:true, solicitacoesRevertidas: solicitacoesRevertidas.size};
     }
     case 'criarEntradaEstoque': {
       const novo = {
@@ -1170,7 +1196,7 @@ function mockApi(acao, dados) {
     }
     case 'criarSolicitacaoMaterial': {
       const novo = {
-        id:'demo-sol-'+Date.now(), material_id:dados.material_id, profissional_id:dados.profissional_id||null,
+        id:'demo-sol-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), material_id:dados.material_id, profissional_id:dados.profissional_id||null,
         procedimento:dados.procedimento||null, exame:dados.exame||null, quantidade:Number(dados.quantidade)||0,
         status:'pendente', observacao:dados.observacao||null, solicitado_por:dados.solicitado_por||null,
         solicitado_em:new Date().toISOString()
