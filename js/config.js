@@ -1314,6 +1314,18 @@
             form populam certo; os 2 tipos aparecem no seletor de Listas
             do Sistema; material criado com categoria/unidade escolhidas
             no dropdown salva certo.
+   v6.37.1 — Corrigido (usuário testou com NF real e o fornecedor veio
+            com nome "DANFE"): layout em 2 colunas comum em DANFE (dados
+            do emitente à esquerda, caixa "DANFE" à direita) às vezes faz
+            a reconstrução de linha por posição colar as duas — o
+            fornecedor ficava com nome errado. extrairDadosNfPdf agora
+            valida a primeira linha candidata contra ruído (rótulos como
+            "DANFE" sozinho) antes de aceitar, e pula pra próxima linha
+            (ou cai no heurístico de fallback) se cair nisso.
+            Testado: cenário exato do bug reproduzido (DANFE colado no
+            rótulo, sem nada no meio) — agora extrai o nome certo; sem
+            regressão nos casos que já funcionavam (HOSPMEDICA, Cirúrgica
+            Medeiros formatado normal).
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

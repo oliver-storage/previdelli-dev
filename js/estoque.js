@@ -759,16 +759,23 @@ function extrairDadosNfPdf(texto){
   // social" antes do primeiro CNPJ (letras, tamanho razoável, sem ser
   // rótulo do formulário).
   let nome = null, endereco = null;
+  const ruido = /^DANFE$|DOCUMENTO AUXILIAR|NOTA FISCAL|ENTRADA|SA[ÍI]DA|CHAVE DE ACESSO|CONSULTA DE AUTENTICIDADE|IDENTIFICA|RECEBEMOS DE|S[ÉE]RIE|FOLHA/i;
   const blocoEmitente = texto.match(/IDENTIFICA[ÇC][ÃA]O DO EMITENTE\s*([\s\S]+?)(?:DANFE|DOCUMENTO AUXILIAR)/i);
   if(blocoEmitente){
     const ls = blocoEmitente[1].split('\n').map(l=>l.trim()).filter(Boolean);
-    nome = ls[0] || null;
-    endereco = ls.slice(1).join(', ') || null;
+    // Layout em 2 colunas (comum em DANFE): "IDENTIFICAÇÃO DO EMITENTE" e
+    // a caixa "DANFE" ficam lado a lado — na reconstrução de linha por
+    // posição Y, às vezes grudam e a primeira linha capturada vira só
+    // ruído ("DANFE", etc.), não o nome de verdade. Pula linhas assim.
+    const candidata = ls.find(l => l.length >= 4 && !ruido.test(l));
+    if(candidata){
+      nome = candidata;
+      endereco = ls.slice(ls.indexOf(candidata)+1).join(', ') || null;
+    }
   }
   if(!nome){
     const idxCnpj = linhas.findIndex(l => cnpjEmitente && l.includes(cnpjEmitente));
     const janela = linhas.slice(0, idxCnpj > 0 ? idxCnpj : 12);
-    const ruido = /DANFE|DOCUMENTO AUXILIAR|NOTA FISCAL|ENTRADA|SA[ÍI]DA|CHAVE DE ACESSO|CONSULTA DE AUTENTICIDADE|IDENTIFICA|RECEBEMOS DE|S[ÉE]RIE|FOLHA/i;
     const candidatas = janela.filter(l => l.length >= 6 && /[A-Za-zÀ-ú]{4,}/.test(l) && !ruido.test(l) && !/^\d/.test(l));
     nome = candidatas.find(l => /(LTDA|S\.?A\b|ME\b|EIRELI|EPP|COM[EÉ]RCIO|DISTRIBUID|FARMA|IND[UÚ]STRIA)/i.test(l)) || candidatas[0] || null;
     const idxNome = linhas.indexOf(nome);
