@@ -167,9 +167,10 @@ function prepararSubNavLancamento(){
   const visibilidade = {
     'lancamento-form': podeVerForm,
     'lancamento-pacientes': podeVerPacientes,
-    'lancamento-profissionais': podeVerProfissionais
+    'lancamento-profissionais': podeVerProfissionais,
+    'lancamento-historico': podeVerForm
   };
-  const rotulos = {'lancamento-form':'Lançamentos','lancamento-pacientes':'Cadastro de Clientes','lancamento-profissionais':'Cadastro de Profissionais'};
+  const rotulos = {'lancamento-form':'Lançamentos','lancamento-pacientes':'Cadastro de Clientes','lancamento-profissionais':'Cadastro de Profissionais','lancamento-historico':'Paciente'};
   const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);
   const nav = document.getElementById('sub-nav-lancamento');
   if(!disponiveis.includes(estado.subAbaLancamento)) estado.subAbaLancamento = disponiveis[0] || null;
@@ -185,7 +186,7 @@ function prepararSubNavLancamento(){
 function trocarSubAbaLancamento(subId){
   estado.subAbaLancamento = subId;
   document.querySelectorAll('#sub-nav-lancamento .sub-aba').forEach(el=>el.classList.toggle('ativa', el.dataset.sub===subId));
-  ['lancamento-form','lancamento-pacientes','lancamento-profissionais'].forEach(id=>{
+  ['lancamento-form','lancamento-pacientes','lancamento-profissionais','lancamento-historico'].forEach(id=>{
     document.getElementById(id).classList.toggle('ativa', id===subId);
   });
   atualizarSubAbaLancamentoAtiva();
@@ -195,6 +196,7 @@ async function atualizarSubAbaLancamentoAtiva(){
   if(estado.subAbaLancamento==='lancamento-form') await atualizarMeusLancamentos();
   if(estado.subAbaLancamento==='lancamento-pacientes') prepararCadastroPacientes(podeEditarCadastroPacientes());
   if(estado.subAbaLancamento==='lancamento-profissionais') await carregarCadastroProfissionais(estado.papel==='gerente');
+  if(estado.subAbaLancamento==='lancamento-historico') prepararHistoricoPaciente();
 }
 
 async function atualizarAbaLancamento(){
@@ -245,3 +247,59 @@ function partesPagamentoDe(registro){
 }
 
 
+
+/* ---------------------------------------------------------------------
+   PACIENTE — histórico completo de atendimentos (sub-aba "Paciente" em
+   Atendimento). Busca todos os lançamentos vinculados ao paciente_id,
+   sem filtro de mês/ano — é o histórico inteiro.
+--------------------------------------------------------------------- */
+let historicoPacientePronto = false;
+function prepararHistoricoPaciente(){
+  if(historicoPacientePronto) return;
+  historicoPacientePronto = true;
+  ligarAutocompletePaciente('historico-');
+
+  // ligarAutocompletePaciente já preenche historico-paciente_id ao
+  // escolher — só falta reagir a essa escolha carregando o histórico.
+  const inputId = document.getElementById('historico-paciente_id');
+  const input = document.getElementById('historico-paciente');
+  let ultimoIdCarregado = null;
+  input.addEventListener('blur', ()=>{
+    setTimeout(async ()=>{
+      const id = inputId.value;
+      if(id && id !== ultimoIdCarregado){
+        ultimoIdCarregado = id;
+        await carregarHistoricoPaciente(id, input.value);
+      }
+    }, 200); // depois do mousedown do autocomplete já ter preenchido o hidden
+  });
+}
+
+async function carregarHistoricoPaciente(pacienteId, nomePaciente){
+  const cartao = document.getElementById('historico-paciente-cartao-resultado');
+  const tabela = document.getElementById('tabela-historico-paciente');
+  document.getElementById('historico-paciente-titulo').textContent = `Atendimentos — ${nomePaciente}`;
+  cartao.style.display = 'block';
+  tabela.innerHTML = '<tr><td class="vazio">Carregando...</td></tr>';
+
+  const resp = await api('listarProducao', {paciente_id: pacienteId});
+  const registros = resp.ok ? (resp.registros||[]) : [];
+  if(registros.length===0){
+    tabela.innerHTML = '<tr><td class="vazio">Nenhum atendimento encontrado pra esse paciente.</td></tr>';
+    return;
+  }
+  tabela.innerHTML = `
+    <thead><tr><th>Data</th><th>Profissional</th><th>Andar</th><th>Procedimento</th><th>Exame</th><th>Convênio</th><th>Forma</th><th>Valor</th></tr></thead>
+    <tbody>${registros.map(r=>`
+      <tr>
+        <td>${formatarDataExibicao(r.data)}</td>
+        <td>${r.prof||''}</td>
+        <td>${r.andar?`<span class="tag">${r.andar}</span>`:'—'}</td>
+        <td>${r.procedimento||'—'}</td>
+        <td>${r.exames||'—'}</td>
+        <td>${r.convenio||'—'}</td>
+        <td>${r.forma_pagamento||'—'}</td>
+        <td class="mono">${formatarMoeda(r.valor)}</td>
+      </tr>`).join('')}</tbody>
+    <tfoot><tr class="linha-total"><td colspan="7">Total (${registros.length} atendimento${registros.length===1?'':'s'})</td><td class="mono">${formatarMoeda(registros.reduce((s,r)=>s+(Number(r.valor)||0),0))}</td></tr></tfoot>`;
+}

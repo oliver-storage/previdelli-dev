@@ -457,7 +457,7 @@ CREATE POLICY acesso_total_anon ON permissoes FOR ALL USING (true) WITH CHECK (t
   const rotuloPapel = p => p==='atendente' ? 'Atendente' : (p==='profissional' ? 'Profissional' : (p==='gerente' ? 'Gerente' : p));
   const explicacaoGrupo = {
     'Início': 'Dashboard inicial com gráficos gerais.',
-    'Lançamento': 'Registrar atendimentos.',
+    'Atendimento': 'Registrar atendimentos.',
     'Verificar': 'Conferir/editar lançamentos, financeiro dos atendimentos.',
     'Crítica': 'Revisar e corrigir lançamentos com pendência.',
     'RMR': 'Relatório de produção por profissional.',

@@ -1403,6 +1403,28 @@
             que são só consulta.
             Testado com a NF real da HOSPMEDICA: as 2 colunas aparecem
             certas, com as quantidades no formato da nota (ex.: "5,0000").
+   v6.39.0 — 3 mudanças em Atendimento (ex-Lançamento), a pedido do
+            usuário:
+            (1) Aba "Lançamento" renomeada pra "Atendimento" — no menu
+            principal, no título da página, e no grupo de permissões em
+            Direitos e Privilégios (a chave interna ver_lancamento não
+            mudou, só o rótulo visível — não quebra permissão já salva).
+            (2) Verificação ganhou o card "Quantidade de atendimentos"
+            ao lado de "Quantidade de pacientes" — total de linhas do
+            período/filtro atual (pacientes é distinto, atendimentos é
+            todo lançamento).
+            (3) Nova sub-aba "Paciente" dentro de Atendimento: busca um
+            paciente (mesmo autocomplete do formulário de lançamento) e
+            mostra TODO o histórico de atendimentos dele — sem filtro de
+            mês/ano, com total geral. Base pro que vem a seguir (busca
+            de duplicados/mesclagem).
+            Testado: menu principal mostra "Atendimento" (não mais
+            "Lançamento"); Verificação mostra a nova KPI; sub-aba
+            Paciente aparece; histórico carrega e soma corretamente pra
+            um paciente com múltiplos atendimentos.
+            Confirmado (sem regressão): colunas Qtd.(NF)/NF da importação
+            de Material (v6.38.2) continuam intactas no código — não
+            foram tocadas nesta entrega.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

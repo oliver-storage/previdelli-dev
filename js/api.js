@@ -195,6 +195,7 @@ async function supabaseApi(acao, dados) {
         query = query.gte('data', `${dados.ano}-01-01`).lte('data', `${dados.ano}-12-31`);
       }
       if(dados.prof) query = query.eq('prof', dados.prof);
+      if(dados.paciente_id) query = query.eq('paciente_id', dados.paciente_id);
       if(dados.limite) query = query.limit(Number(dados.limite));
       // Paginação (usada por buscarProducaoCompleta, para buscas de ano
       // inteiro que passariam do limite de linhas de uma consulta só) —
@@ -1477,6 +1478,7 @@ function mockApi(acao, dados) {
         if(dados.ano) registros = registros.filter(r=>String(r.ano)===String(dados.ano));
       }
       if(dados.prof) registros = registros.filter(r=>r.prof.toUpperCase()===dados.prof.toUpperCase());
+      if(dados.paciente_id) registros = registros.filter(r=>r.paciente_id===dados.paciente_id);
       registros.sort((a,b)=> String(b.data).localeCompare(String(a.data))); // mais recente primeiro, igual ao Supabase
       if(dados.limite) registros = registros.slice(0, Number(dados.limite));
       return {ok:true, registros};

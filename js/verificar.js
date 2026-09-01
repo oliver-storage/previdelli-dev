@@ -241,7 +241,8 @@ async function atualizarEditar(){
   const pacientesDistintos = new Set(
     registros.map(r => String(r.paciente||'').trim().toUpperCase()).filter(Boolean)
   ).size;
-  const cardPacientes = `<div class="kpi"><div class="rotulo">Quantidade de pacientes</div><div class="valor" id="resumo-fp-pacientes" style="color:var(--ink-400);">${pacientesDistintos}</div></div>`;
+  const cardPacientes = `<div class="kpi"><div class="rotulo">Quantidade de pacientes</div><div class="valor" id="resumo-fp-pacientes" style="color:var(--ink-400);">${pacientesDistintos}</div></div>
+    <div class="kpi"><div class="rotulo">Quantidade de atendimentos</div><div class="valor" id="resumo-fp-atendimentos" style="color:var(--ink-400);">${registros.length}</div></div>`;
   if(!podeVerFinanceiro){
     if(cartaoResumoFinanceiro) cartaoResumoFinanceiro.style.display = '';
     if(cartaoPorConvenio) cartaoPorConvenio.style.display = 'none';

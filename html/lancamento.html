@@ -1,7 +1,7 @@
 <section class="painel" id="painel-lancamento">
       <div class="cabecalho-painel">
         <div>
-          <h2>Lançamento</h2>
+          <h2>Atendimento</h2>
           <p>Registre um atendimento realizado. Os campos com seta são padronizados por lista.</p>
         </div>
         <button class="botao sutil pequeno botao-exportar-pdf">Exportar PDF</button>
@@ -11,6 +11,7 @@
         <div class="sub-aba ativa" data-sub="lancamento-form">Lançamentos</div>
         <div class="sub-aba" data-sub="lancamento-pacientes">Cadastro de Clientes</div>
         <div class="sub-aba" data-sub="lancamento-profissionais">Cadastro de Profissionais</div>
+        <div class="sub-aba" data-sub="lancamento-historico">Paciente</div>
       </div>
 
       <!-- ===== LANÇAMENTOS ===== -->
@@ -113,6 +114,26 @@
           <div class="tabela-scroll">
             <table id="tabela-cadastro-profissionais"></table>
           </div>
+        </div>
+      </div>
+
+      <!-- ===== PACIENTE (histórico de atendimentos) ===== -->
+      <div class="sub-painel" id="lancamento-historico">
+        <div class="cartao">
+          <h3>Histórico do paciente</h3>
+          <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+            Busca todos os atendimentos já lançados pra um paciente, independente de mês/ano.
+          </p>
+          <div class="campo" style="position:relative;max-width:420px;">
+            <label>Buscar paciente</label>
+            <input type="text" id="historico-paciente" placeholder="Digite pra buscar...">
+            <input type="hidden" id="historico-paciente_id">
+            <div id="historico-paciente-resultados" style="display:none;position:absolute;z-index:10;background:#fff;border:1.5px solid var(--line);border-radius:8px;max-height:240px;overflow-y:auto;width:100%;box-shadow:0 6px 18px rgba(0,0,0,.1);"></div>
+          </div>
+        </div>
+        <div class="cartao" id="historico-paciente-cartao-resultado" style="display:none;">
+          <h3 id="historico-paciente-titulo">Atendimentos</h3>
+          <div class="tabela-scroll"><table id="tabela-historico-paciente"></table></div>
         </div>
       </div>
     </section>
