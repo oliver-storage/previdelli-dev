@@ -8,7 +8,9 @@
 
       <div class="sub-nav" id="sub-nav-estoque">
         <div class="sub-aba ativa" data-sub="estoque-materiais">Fornecedor</div>
+        <div class="sub-aba" data-sub="estoque-lista-fornecedores">Lista Fornecedores</div>
         <div class="sub-aba" data-sub="estoque-entrada">Material</div>
+        <div class="sub-aba" data-sub="estoque-lista-materiais">Lista Materiais</div>
         <div class="sub-aba" data-sub="estoque-solicitar">Solicitar</div>
         <div class="sub-aba" data-sub="estoque-dispensar">Dispensar</div>
         <div class="sub-aba" data-sub="estoque-dispensados">Dispensados</div>
@@ -20,7 +22,6 @@
         <div class="sub-nav" id="sub-nav-fornecedor" style="margin-bottom:20px;">
           <div class="sub-aba ativa" data-modo="manual">Cadastro Manual</div>
           <div class="sub-aba" data-modo="automatico">Cadastro Automático</div>
-          <div class="sub-aba" data-modo="lista">Lista</div>
         </div>
 
         <div id="fornecedor-modo-manual">
@@ -60,21 +61,21 @@
             <div id="fornecedor-pdf-revisao" style="display:none;"></div>
           </div>
         </div>
+      </div>
 
-        <div id="fornecedor-modo-lista" style="display:none;">
-          <div class="cartao">
-            <h3>Fornecedores cadastrados</h3>
-            <div class="tabela-scroll"><table id="tabela-fornecedores"></table></div>
-          </div>
+      <!-- ===== LISTA FORNECEDORES (aba própria, no mesmo nível de Fornecedor/Material) ===== -->
+      <div class="sub-painel" id="estoque-lista-fornecedores">
+        <div class="cartao">
+          <h3>Fornecedores cadastrados</h3>
+          <div class="tabela-scroll"><table id="tabela-fornecedores"></table></div>
         </div>
       </div>
 
-      <!-- ===== MATERIAL (Cadastro Manual / Cadastro Automático / Lista) ===== -->
+      <!-- ===== MATERIAL (Cadastro Manual / Cadastro Automático) ===== -->
       <div class="sub-painel" id="estoque-entrada">
         <div class="sub-nav" id="sub-nav-material" style="margin-bottom:20px;">
           <div class="sub-aba ativa" data-modo="manual">Cadastro Manual</div>
           <div class="sub-aba" data-modo="automatico">Cadastro Automático</div>
-          <div class="sub-aba" data-modo="lista">Lista</div>
         </div>
 
         <div id="material-modo-manual">
@@ -122,13 +123,6 @@
           </div>
         </div>
 
-        <div id="material-modo-lista" style="display:none;">
-          <div class="cartao">
-            <h3>Catálogo de materiais</h3>
-            <div class="tabela-scroll"><table id="tabela-materiais"></table></div>
-          </div>
-        </div>
-
         <div id="material-modo-automatico" style="display:none;">
           <div class="cartao">
             <h3>Importar Materiais (PDF da NF)</h3>
@@ -145,6 +139,14 @@
             </details>
             <div id="material-pdf-revisao" style="display:none;"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- ===== LISTA MATERIAIS (aba própria, no mesmo nível de Fornecedor/Material) ===== -->
+      <div class="sub-painel" id="estoque-lista-materiais">
+        <div class="cartao">
+          <h3>Catálogo de materiais</h3>
+          <div class="tabela-scroll"><table id="tabela-materiais"></table></div>
         </div>
       </div>
 

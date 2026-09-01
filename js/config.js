@@ -1146,6 +1146,18 @@
             Material (não fazem parte da "lista" pedida).
             Testado: as duas tabelas populam certinho, com Editar/Excluir
             presentes; Entradas continua funcionando sem ser afetada.
+   v6.32.3 — Correção do pedido anterior (v6.32.2 entendeu errado): "Lista
+            Fornecedores" e "Lista Materiais" viraram abas PRÓPRIAS, no
+            mesmo nível de Fornecedor/Material/Solicitar/Dispensar/
+            Dispensados/Relatório — não mais sub-abas dentro de
+            Fornecedor/Material. Removido o toggle "Lista" de dentro de
+            Cadastro Manual/Automático (voltou a ser só esses 2).
+            Ordem no menu: Fornecedor | Lista Fornecedores | Material |
+            Lista Materiais | Solicitar | Dispensar | Dispensados |
+            Relatório. Editar/Excluir continuam funcionando igual.
+            Testado: as 2 abas novas aparecem na ordem certa no menu
+            principal; mostram os dados com Editar/Excluir; Fornecedor e
+            Material (cadastro) continuam funcionando normalmente.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

@@ -27,13 +27,15 @@ function prepararSubNavEstoque(){
   const podeEditar = temPermissao('editar_estoque');
   const visibilidade = {
     'estoque-materiais': podeEditar,
+    'estoque-lista-fornecedores': podeEditar,
     'estoque-entrada': podeEditar,
+    'estoque-lista-materiais': podeEditar,
     'estoque-solicitar': podeSolicitar,
     'estoque-dispensar': podeDispensar,
     'estoque-dispensados': podeSolicitar || podeDispensar,
     'estoque-relatorio': podeEditar || podeDispensar
   };
-  const rotulos = {'estoque-materiais':'Fornecedor','estoque-entrada':'Material','estoque-solicitar':'Solicitar','estoque-dispensar':'Dispensar','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
+  const rotulos = {'estoque-materiais':'Fornecedor','estoque-lista-fornecedores':'Lista Fornecedores','estoque-entrada':'Material','estoque-lista-materiais':'Lista Materiais','estoque-solicitar':'Solicitar','estoque-dispensar':'Dispensar','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
   const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);
   const nav = document.getElementById('sub-nav-estoque');
   if(!disponiveis.includes(estado.subAbaEstoque)) estado.subAbaEstoque = disponiveis[0] || null;
@@ -49,7 +51,7 @@ function prepararSubNavEstoque(){
 function trocarSubAbaEstoque(subId){
   estado.subAbaEstoque = subId;
   document.querySelectorAll('#sub-nav-estoque .sub-aba').forEach(el=>el.classList.toggle('ativa', el.dataset.sub===subId));
-  ['estoque-materiais','estoque-entrada','estoque-solicitar','estoque-dispensar','estoque-dispensados','estoque-relatorio'].forEach(id=>{
+  ['estoque-materiais','estoque-lista-fornecedores','estoque-entrada','estoque-lista-materiais','estoque-solicitar','estoque-dispensar','estoque-dispensados','estoque-relatorio'].forEach(id=>{
     document.getElementById(id).classList.toggle('ativa', id===subId);
   });
   atualizarSubAbaEstoqueAtiva();
@@ -57,7 +59,9 @@ function trocarSubAbaEstoque(subId){
 
 async function atualizarSubAbaEstoqueAtiva(){
   if(estado.subAbaEstoque==='estoque-materiais') await prepararAbaFornecedor();
+  if(estado.subAbaEstoque==='estoque-lista-fornecedores') renderizarFornecedores();
   if(estado.subAbaEstoque==='estoque-entrada') await prepararAbaMaterial();
+  if(estado.subAbaEstoque==='estoque-lista-materiais') renderizarCatalogoMateriais();
   if(estado.subAbaEstoque==='estoque-solicitar') await prepararSolicitarEstoque();
   if(estado.subAbaEstoque==='estoque-dispensados') await prepararDispensados();
   if(estado.subAbaEstoque==='estoque-dispensar') await carregarSolicitacoesPendentes();
@@ -98,7 +102,7 @@ async function carregarFornecedoresEstoque(){
 async function prepararAbaFornecedor(){
   renderizarFornecedores();
   if(!estoqueSubAbaPronta.fornecedor){
-    prepararToggleManualAutomatico('sub-nav-fornecedor', {manual:'fornecedor-modo-manual', automatico:'fornecedor-modo-automatico', lista:'fornecedor-modo-lista'});
+    prepararToggleManualAutomatico('sub-nav-fornecedor', {manual:'fornecedor-modo-manual', automatico:'fornecedor-modo-automatico'});
     prepararFormFornecedor();
     prepararImportacaoFornecedorPdf();
     estoqueSubAbaPronta.fornecedor = true;
@@ -109,7 +113,7 @@ async function prepararAbaMaterial(){
   renderizarCatalogoMateriais();
   await prepararEntradaEstoque();
   if(!estoqueSubAbaPronta.material){
-    prepararToggleManualAutomatico('sub-nav-material', {manual:'material-modo-manual', automatico:'material-modo-automatico', lista:'material-modo-lista'});
+    prepararToggleManualAutomatico('sub-nav-material', {manual:'material-modo-manual', automatico:'material-modo-automatico'});
     prepararFormMaterial();
     prepararImportacaoMaterialPdf();
     estoqueSubAbaPronta.material = true;
