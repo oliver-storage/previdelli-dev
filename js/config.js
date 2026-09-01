@@ -1267,6 +1267,25 @@
             botões/bloqueios; liberando cada uma, tudo aparece/libera;
             NF repetida bloqueia sem a permissão e passa com ela; as 4
             aparecem certinho na matriz de Direitos e Privilégios.
+   v6.36.0 — 5ª permissão nova no bloco Estoque, a pedido do usuário:
+            "Autorizar cadastro de Fornecedor durante importação de
+            Material". Material → Cadastro Automático agora checa o
+            fornecedor (emitente) da NF por CNPJ:
+            • Já cadastrado → só informa, não mexe em nada.
+            • Não cadastrado, COM a permissão → pergunta (confirm) se
+              quer cadastrar agora com os dados lidos da NF; aceitando,
+              cadastra na hora.
+            • Não cadastrado, SEM a permissão → avisa que não está
+              cadastrado e que precisa de alguém com a permissão liberada
+              (ou cadastro manual na aba Fornecedor) — não bloqueia a
+              importação dos materiais, só não mexe no fornecedor.
+            Gerente sempre tem a permissão, como o resto do sistema.
+            Requer SQL: nenhum (é tudo permissão, não schema).
+            Testado: a permissão aparece na matriz de Direitos e
+            Privilégios; as 4 mensagens (existente/criado/recusado/sem
+            permissão) renderizam certas; gerente sempre autorizado,
+            atendente só depois de liberado; criar fornecedor com os
+            dados extraídos da NF funciona.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

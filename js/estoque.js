@@ -1005,7 +1005,38 @@ function prepararImportacaoMaterialPdf(){
         item.materialId = item.jaExiste ? respMat.material.id : null;
       }
 
-      importacaoMaterialResultado = {extraido};
+      // Fornecedor: se já existe (por CNPJ), só informa. Se NÃO existe,
+      // pede autorização — só quem tem a permissão nova pode cadastrar
+      // ele ali mesmo, na hora; sem a permissão, só avisa que precisa
+      // pedir liberação ou cadastrar manualmente em Fornecedor.
+      let avisoFornecedor = null;
+      if(extraido.fornecedor && extraido.fornecedor.cnpj){
+        const respForn = await api('buscarFornecedorPorCnpj', {cnpj: extraido.fornecedor.cnpj});
+        const fornecedorExistente = respForn.ok ? respForn.fornecedor : null;
+        if(fornecedorExistente){
+          avisoFornecedor = {tipo:'existente', nome: fornecedorExistente.nome};
+        } else if(temPermissao('autorizar_fornecedor_na_importacao')){
+          const nomeFornecedor = extraido.fornecedor.nome || extraido.fornecedor.cnpj;
+          if(confirm(`Fornecedor "${nomeFornecedor}" (CNPJ ${extraido.fornecedor.cnpj}) não está cadastrado. Cadastrar agora com os dados lidos da NF?`)){
+            const respCriar = await api('criarFornecedor', {
+              nome: extraido.fornecedor.nome, cnpj: extraido.fornecedor.cnpj,
+              endereco: extraido.fornecedor.endereco, inscricao_estadual: extraido.fornecedor.inscricao_estadual
+            });
+            if(respCriar.ok){
+              avisoFornecedor = {tipo:'criado', nome: respCriar.fornecedor.nome};
+              await carregarFornecedoresEstoque();
+            } else {
+              avisoFornecedor = {tipo:'erro_criar', erro: respCriar.erro};
+            }
+          } else {
+            avisoFornecedor = {tipo:'nao_cadastrado_recusado', nome: nomeFornecedor};
+          }
+        } else {
+          avisoFornecedor = {tipo:'nao_cadastrado_sem_permissao', nome: extraido.fornecedor.nome || extraido.fornecedor.cnpj};
+        }
+      }
+
+      importacaoMaterialResultado = {extraido, avisoFornecedor};
       renderizarRevisaoMaterialPdf();
       status.style.color = 'var(--teal-700)';
       status.textContent = `Lido — ${extraido.itens.length} itens encontrados. Revise abaixo antes de salvar.`;
@@ -1018,11 +1049,21 @@ function prepararImportacaoMaterialPdf(){
 }
 
 function renderizarRevisaoMaterialPdf(){
-  const {extraido} = importacaoMaterialResultado;
+  const {extraido, avisoFornecedor} = importacaoMaterialResultado;
   const div = document.getElementById('material-pdf-revisao');
   div.style.display = 'block';
 
+  const mensagensFornecedor = {
+    existente: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor já cadastrado: ${a.nome}.</p>`,
+    criado: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor "${a.nome}" cadastrado agora, com os dados da NF.</p>`,
+    erro_criar: a => `<p style="font-size:12.5px;color:var(--danger);">Não consegui cadastrar o fornecedor: ${a.erro}</p>`,
+    nao_cadastrado_recusado: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não foi cadastrado (você optou por não cadastrar agora).</p>`,
+    nao_cadastrado_sem_permissao: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não está cadastrado, e você não tem permissão pra cadastrá-lo aqui — peça pra um gerente liberar "Autorizar cadastro de Fornecedor durante importação de Material" em Direitos e Privilégios, ou cadastre manualmente na aba Fornecedor.</p>`
+  };
+  const blocoFornecedor = avisoFornecedor ? mensagensFornecedor[avisoFornecedor.tipo](avisoFornecedor) : '';
+
   div.innerHTML = `
+    ${blocoFornecedor}
     <h4 style="margin:16px 0 8px;">Itens encontrados (${extraido.itens.length}) — NF nº ${extraido.numeroNf||'?'}</h4>
     <p style="font-size:12.5px;color:var(--ink-400);">Só cadastra no catálogo — pra dar entrada no estoque, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
     <div class="tabela-scroll"><table id="tabela-revisao-material">
