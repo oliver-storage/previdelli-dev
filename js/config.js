@@ -1170,6 +1170,15 @@
             Listagem de Fornecedores e de Materiais populam certinho com
             Editar/Excluir; Entradas e o form manual de Material
             continuam funcionando sem quebrar nada.
+   v6.32.5 — Corrigido: botão Editar (Fornecedor e Material) não fazia
+            nada visível — preenchia o formulário, mas ele ficava
+            escondido atrás da Listagem (que virou sub-aba separada na
+            v6.32.4, e o Editar nunca foi ensinado a trocar de sub-aba).
+            Agora, clicar em Editar leva automaticamente pra "Cadastro
+            Manual" com os dados já preenchidos. "Cancelar edição"
+            continua sem forçar troca de aba (fica onde a pessoa estava).
+            Testado: Editar troca a sub-aba e preenche o formulário certo,
+            nos dois (Fornecedor e Material); Cancelar não mexe na aba.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

@@ -71,13 +71,19 @@ async function atualizarSubAbaEstoqueAtiva(){
 function prepararToggleManualAutomatico(navId, paineis){
   const nav = document.getElementById(navId);
   nav.querySelectorAll('.sub-aba').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      nav.querySelectorAll('.sub-aba').forEach(x=>x.classList.toggle('ativa', x===el));
-      const modo = el.dataset.modo;
-      Object.keys(paineis).forEach(chave=>{
-        document.getElementById(paineis[chave]).style.display = (chave===modo) ? 'block' : 'none';
-      });
-    });
+    el.addEventListener('click', ()=> trocarModoInterno(navId, paineis, el.dataset.modo));
+  });
+}
+
+// Troca de modo programaticamente (não só por clique) — usado pelo botão
+// "Editar" da Listagem, que precisa levar a pessoa pra "Cadastro Manual"
+// automaticamente (senão o formulário fica preenchido escondido atrás da
+// Listagem, sem a pessoa ver nada acontecer ao clicar em Editar).
+function trocarModoInterno(navId, paineis, modo){
+  const nav = document.getElementById(navId);
+  nav.querySelectorAll('.sub-aba').forEach(el=>el.classList.toggle('ativa', el.dataset.modo===modo));
+  Object.keys(paineis).forEach(chave=>{
+    document.getElementById(paineis[chave]).style.display = (chave===modo) ? 'block' : 'none';
   });
 }
 
@@ -213,6 +219,9 @@ function preencherFormFornecedor(fornecedor){
   document.getElementById('form-fornecedor-uf').value = fornecedor ? (fornecedor.uf||'') : '';
   document.getElementById('form-fornecedor-cep').value = fornecedor ? (fornecedor.cep||'') : '';
   document.getElementById('botao-cancelar-edicao-fornecedor').style.display = fornecedor ? 'inline-flex' : 'none';
+  if(fornecedor){
+    trocarModoInterno('sub-nav-fornecedor', {lista:'fornecedor-modo-lista', manual:'fornecedor-modo-manual', automatico:'fornecedor-modo-automatico'}, 'manual');
+  }
   document.getElementById('form-fornecedor-nome').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -259,6 +268,9 @@ function preencherFormMaterial(material){
   document.getElementById('form-material-codigo-fornecedor').value = material ? (material.codigo_fornecedor||'') : '';
   document.getElementById('form-material-ativo').checked = material ? material.ativo!==false : true;
   document.getElementById('botao-cancelar-edicao-material').style.display = material ? 'inline-flex' : 'none';
+  if(material){
+    trocarModoInterno('sub-nav-material', {lista:'material-modo-lista', manual:'material-modo-manual', automatico:'material-modo-automatico'}, 'manual');
+  }
   document.getElementById('form-material-nome').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
