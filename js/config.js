@@ -1341,6 +1341,20 @@
             antes do nome de verdade) — endereço fica vazio nesse caso
             extremo em vez de errado, dá pra completar na revisão. Sem
             regressão no HOSPMEDICA.
+   v6.37.3 — v6.37.2 ainda não resolveu (usuário testou de novo, mesmo
+            erro). Causa provável: o regex da âncora "RECEBEMOS DE...OS
+            PRODUTOS" usava "." simples, que em JS NÃO atravessa quebra
+            de linha — se a extração real do PDF quebrou essa frase em
+            2-3 linhas (bem provável, já que o resto do documento também
+            quebra de forma imprevisível), a âncora simplesmente não
+            batia e caía de volta no método antigo, quebrado. Trocado
+            para "[\s\S]" (atravessa qualquer quebra de linha) +
+            normalização de espaços no resultado. Também adicionada
+            validação de sanidade (tamanho máximo, rejeita se tiver
+            padrão de CNPJ dentro — sinal de que capturou lixo demais).
+            Testado: 4 cenários incluindo o pior caso (RECEBEMOS quebrado
+            em 3 linhas E bloco do emitente bagunçado ao mesmo tempo) —
+            nome sai certo em todos; sem regressão no HOSPMEDICA.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

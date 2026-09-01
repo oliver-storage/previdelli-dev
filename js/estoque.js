@@ -765,8 +765,13 @@ function extrairDadosNfPdf(texto){
   let nome = null, endereco = null;
   const ruido = /^DANFE$|DOCUMENTO AUXILIAR|NOTA FISCAL|FISCAL ELETR[ÔO]NICA|ENTRADA|SA[ÍI]DA|CHAVE DE ACESSO|CONSULTA DE AUTENTICIDADE|IDENTIFICA|RECEBEMOS DE|S[ÉE]RIE|FOLHA/i;
 
-  const mRecebemos = texto.match(/RECEBEMOS DE\s+(.+?)\s+OS PRODUTOS/i);
-  if(mRecebemos && mRecebemos[1] && !ruido.test(mRecebemos[1])){
+  const mRecebemos = texto.match(/RECEBEMOS DE\s+([\s\S]+?)\s+OS PRODUTOS/i);
+  if(mRecebemos && mRecebemos[1]){
+    // Junta quebra de linha eventual dentro do próprio nome (só espaço,
+    // não deixa o \n aparecer no valor salvo).
+    mRecebemos[1] = mRecebemos[1].replace(/\s+/g, ' ').trim();
+  }
+  if(mRecebemos && mRecebemos[1] && !ruido.test(mRecebemos[1]) && mRecebemos[1].length <= 80 && !/\d{2}\.\d{3}\.\d{3}/.test(mRecebemos[1])){
     nome = mRecebemos[1].trim();
   }
 
