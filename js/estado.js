@@ -62,7 +62,11 @@ const DEFINICAO_PERMISSOES = [
   {tela:'Estoque',        chave:'ver_estoque',             rotulo:'Ver'},
   {tela:'Estoque',        chave:'solicitar_estoque',       rotulo:'Solicitar material'},
   {tela:'Estoque',        chave:'dispensar_estoque',       rotulo:'Dispensar/Negar (aprovação)'},
-  {tela:'Estoque',        chave:'editar_estoque',          rotulo:'Editar (cadastros, entrada de NF)'}
+  {tela:'Estoque',        chave:'editar_estoque',          rotulo:'Editar (cadastros, entrada de NF)'},
+  {tela:'Estoque',        chave:'importar_nf_repetida',    rotulo:'Importar NF já importada antes'},
+  {tela:'Estoque',        chave:'excluir_fornecedor_estoque', rotulo:'Excluir Fornecedor'},
+  {tela:'Estoque',        chave:'excluir_material_estoque',   rotulo:'Excluir Material'},
+  {tela:'Estoque',        chave:'retroceder_estoque',      rotulo:'Retroceder/Desfazer (Solicitar, Dispensar, Dispensados)'}
 ];
 
 

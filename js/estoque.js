@@ -124,7 +124,7 @@ async function prepararAbaMaterial(){
 
 function renderizarCatalogoMateriais(){
   const podeEditar = temPermissao('editar_estoque');
-  const podeExcluir = estado.papel === 'gerente';
+  const podeExcluir = temPermissao('excluir_material_estoque');
   const tabela = document.getElementById('tabela-materiais');
   tabela.innerHTML = `
     <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
@@ -156,7 +156,7 @@ function renderizarCatalogoMateriais(){
 
 function renderizarFornecedores(){
   const podeEditar = temPermissao('editar_estoque');
-  const podeExcluir = estado.papel === 'gerente';
+  const podeExcluir = temPermissao('excluir_fornecedor_estoque');
   const tabela = document.getElementById('tabela-fornecedores');
   tabela.innerHTML = `
     <thead><tr><th>Nome</th><th>CNPJ</th><th>Cidade/UF</th><th>Contato</th><th></th></tr></thead>
@@ -184,7 +184,7 @@ function renderizarFornecedores(){
 }
 
 async function excluirFornecedorEstoque(id, nome){
-  if(estado.papel !== 'gerente') return;
+  if(!temPermissao('excluir_fornecedor_estoque')) return;
   if(!confirm(`Excluir fornecedor "${nome}" do banco?`)) return;
   const resp = await api('excluirFornecedor', {id});
   if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
@@ -193,7 +193,7 @@ async function excluirFornecedorEstoque(id, nome){
 }
 
 async function excluirMaterialEstoque(id, nome){
-  if(estado.papel !== 'gerente') return;
+  if(!temPermissao('excluir_material_estoque')) return;
   if(!confirm(`Excluir material "${nome}" do banco?`)) return;
   const resp = await api('excluirMaterial', {id});
   if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
@@ -332,7 +332,8 @@ async function prepararEntradaEstoque(){
       lote: document.getElementById('entrada-lote').value,
       data_entrada: document.getElementById('entrada-data').value,
       validade: document.getElementById('entrada-validade').value || null,
-      quantidade, valor_unitario: document.getElementById('entrada-valor-unitario').value || null
+      quantidade, valor_unitario: document.getElementById('entrada-valor-unitario').value || null,
+      permitir_nf_repetida: temPermissao('importar_nf_repetida')
     });
     if(!resp.ok){ confirmacao.style.color='var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
     confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Entrada registrada ✓';
@@ -429,9 +430,10 @@ async function carregarMinhasSolicitacoes(){
   const resp = await api('listarSolicitacoesMaterial', {status:'pendente'});
   const tabela = document.getElementById('tabela-minhas-solicitacoes');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
+  const podeRetroceder = temPermissao('retroceder_estoque');
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nenhuma solicitação pendente.</td></tr>' : `
     <thead><tr><th>Material</th><th>Qtd.</th><th>Atendimento</th><th>Exame</th><th>Solicitado em</th><th></th></tr></thead>
-    <tbody>${lista.map(s=>`<tr data-id="${s.id}"><td>${(s.materiais||{}).nome||'—'}</td><td>${s.quantidade}</td><td>${s.procedimento||'—'}</td><td>${s.exame||'—'}</td><td>${new Date(s.solicitado_em).toLocaleDateString('pt-BR')}</td><td><button class="botao sutil pequeno botao-cancelar-solicitacao" data-id="${s.id}">Cancelar</button></td></tr>`).join('')}</tbody>`;
+    <tbody>${lista.map(s=>`<tr data-id="${s.id}"><td>${(s.materiais||{}).nome||'—'}</td><td>${s.quantidade}</td><td>${s.procedimento||'—'}</td><td>${s.exame||'—'}</td><td>${new Date(s.solicitado_em).toLocaleDateString('pt-BR')}</td><td>${podeRetroceder?`<button class="botao sutil pequeno botao-cancelar-solicitacao" data-id="${s.id}">Cancelar</button>`:''}</td></tr>`).join('')}</tbody>`;
 
   tabela.querySelectorAll('.botao-cancelar-solicitacao').forEach(botao=>{
     botao.addEventListener('click', async ()=>{
@@ -451,6 +453,7 @@ async function carregarSolicitacoesPendentes(){
   const resp = await api('listarSolicitacoesMaterial', {status:'pendente'});
   const tabela = document.getElementById('tabela-solicitacoes-pendentes');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
+  const podeRetroceder = temPermissao('retroceder_estoque');
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nenhuma solicitação pendente.</td></tr>' : `
     <thead><tr><th>Material</th><th>Qtd.</th><th>Profissional</th><th>Atendimento</th><th>Exame</th><th>Solicitado por</th><th>Quando</th><th></th></tr></thead>
     <tbody>${lista.map(s=>`
@@ -465,7 +468,7 @@ async function carregarSolicitacoesPendentes(){
         <td style="display:flex;gap:6px;">
           <button class="botao secundario pequeno botao-dispensar-solicitacao">Dispensar</button>
           <button class="botao sutil pequeno botao-negar-solicitacao">Negar</button>
-          <button class="botao sutil pequeno botao-excluir-solicitacao">Excluir</button>
+          ${podeRetroceder?'<button class="botao sutil pequeno botao-excluir-solicitacao">Excluir</button>':''}
         </td>
       </tr>`).join('')}</tbody>`;
 
@@ -598,10 +601,12 @@ async function carregarDispensados(){
   const tabela = document.getElementById('tabela-dispensados');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
 
-  // Só pode marcar/confirmar quem solicitou aquele item, ou quem tem
-  // permissão de dispensar (farmácia/gerente pode confirmar em nome de
-  // alguém, se precisar).
+  // Confirmar recebimento: quem solicitou, ou quem tem permissão de
+  // dispensar (farmácia/gerente pode confirmar em nome de alguém).
+  // Desfazer/Excluir: permissão própria (retroceder_estoque) — mexer numa
+  // baixa de estoque já feita é mais sensível que só confirmar.
   const podeConfirmarGeral = temPermissao('dispensar_estoque');
+  const podeRetroceder = temPermissao('retroceder_estoque');
 
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nada aqui.</td></tr>' : `
     <thead><tr><th></th><th>Material</th><th>Qtd.</th><th>Solicitante</th><th>Dispensado em</th><th>Status</th><th>Recebido por / Observação</th><th></th></tr></thead>
@@ -619,8 +624,8 @@ async function carregarDispensados(){
         <td>${s.status==='confirmado'?'<span style="color:var(--teal-700);">Confirmado</span>':'<span style="color:var(--gold-600);">Aguardando confirmação</span>'}</td>
         <td>${s.status==='confirmado'?`${s.confirmado_por||'—'}${s.observacao_recebimento?' — '+s.observacao_recebimento:''}`:'—'}</td>
         <td style="display:flex;gap:6px;">
-          ${podeConfirmarGeral?botaoDesfazer:''}
-          ${podeConfirmarGeral?`<button class="botao sutil pequeno botao-excluir-dispensados" data-id="${s.id}">Excluir</button>`:''}
+          ${podeRetroceder?botaoDesfazer:''}
+          ${podeRetroceder?`<button class="botao sutil pequeno botao-excluir-dispensados" data-id="${s.id}">Excluir</button>`:''}
         </td>
       </tr>`;
     }).join('')}</tbody>`;

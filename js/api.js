@@ -415,6 +415,12 @@ async function supabaseApi(acao, dados) {
 
     // ---------- ESTOQUE — Entrada por NF (cria um lote) ----------
     case 'criarEntradaEstoque': {
+      if(dados.nota_fiscal && !dados.permitir_nf_repetida){
+        const { data: existente } = await supabaseClient.from('estoque_lotes').select('id').eq('nota_fiscal', dados.nota_fiscal).limit(1);
+        if(existente && existente.length){
+          return {ok:false, erro:`A NF ${dados.nota_fiscal} já foi importada antes. Se for intencional (nota com múltiplas remessas, correção, etc.), peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
+        }
+      }
       const { data, error } = await supabaseClient.from('estoque_lotes').insert({
         material_id: dados.material_id, fornecedor_id: dados.fornecedor_id||null,
         lote: dados.lote||null, nota_fiscal: dados.nota_fiscal||null,
@@ -1183,8 +1189,14 @@ function mockApi(acao, dados) {
       return {ok:true, solicitacoesRevertidas: solicitacoesRevertidas.size};
     }
     case 'criarEntradaEstoque': {
+      if(dados.nota_fiscal && !dados.permitir_nf_repetida){
+        const jaExiste = demo.estoqueLotes.some(l=>l.nota_fiscal===dados.nota_fiscal);
+        if(jaExiste){
+          return {ok:false, erro:`A NF ${dados.nota_fiscal} já foi importada antes. Se for intencional, peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
+        }
+      }
       const novo = {
-        id:'demo-lote-'+Date.now(), material_id:dados.material_id, fornecedor_id:dados.fornecedor_id||null,
+        id:'demo-lote-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), material_id:dados.material_id, fornecedor_id:dados.fornecedor_id||null,
         lote:dados.lote||null, nota_fiscal:dados.nota_fiscal||null,
         data_entrada: dados.data_entrada || new Date().toISOString().slice(0,10), validade: dados.validade||null,
         quantidade_entrada: Number(dados.quantidade)||0, quantidade_atual: Number(dados.quantidade)||0,

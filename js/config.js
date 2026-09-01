@@ -1241,6 +1241,32 @@
             Testado: material criado/editado com os 2 campos novos;
             Listagem mostra o valor formatado certo (R$ x,xx); form de
             edição carrega os dois campos.
+   v6.35.0 — 4 permissões novas no bloco Estoque (Direitos e Privilégios),
+            a pedido do usuário — antes eram travadas fixo (gerente-only)
+            ou nem existiam:
+            • Importar NF já importada antes — sem essa permissão, o
+              sistema BLOQUEIA registrar entrada com um número de NF que
+              já existe no banco (checagem nova, não existia). Aplica no
+              "Registrar entrada por Nota Fiscal" (Cadastro Manual do
+              Material).
+            • Excluir Fornecedor — trocou de fixo (gerente) pra
+              configurável.
+            • Excluir Material — trocou de fixo (gerente) pra
+              configurável.
+            • Retroceder/Desfazer (Solicitar, Dispensar, Dispensados) —
+              nova permissão própria, separada de "Dispensar/Negar". Cobre
+              Cancelar (Solicitar), Excluir de pendente (Dispensar), e
+              Desfazer+Excluir (Dispensados) — confirmar recebimento
+              continua sob a permissão de Dispensar, não muda.
+            Gerente sempre tem as 4, como todo o resto do sistema.
+            Exclusão de Entrada/lote NÃO entrou nessa leva (não foi
+            pedida) — continua gerente-only fixo, com a reversão em
+            cascata da v6.33.1.
+            Requer SQL: nenhum (é tudo permissão, não schema).
+            Testado: atendente sem as permissões não vê nenhum dos 4
+            botões/bloqueios; liberando cada uma, tudo aparece/libera;
+            NF repetida bloqueia sem a permissão e passa com ela; as 4
+            aparecem certinho na matriz de Direitos e Privilégios.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
