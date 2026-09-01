@@ -1355,6 +1355,20 @@
             Testado: 4 cenários incluindo o pior caso (RECEBEMOS quebrado
             em 3 linhas E bloco do emitente bagunçado ao mesmo tempo) —
             nome sai certo em todos; sem regressão no HOSPMEDICA.
+   v6.37.4 — Usuário mandou 5 NFs reais de fornecedores diferentes
+            (Cirúrgica Medeiros, HOSPMEDICA, Fresenius Kabi, Priscilla
+            Medeiros Souza, Via Medicamentos) — nome já tinha ficado bom
+            (v6.37.3), mas achei e corrigi 2 problemas reais testando
+            contra elas:
+            (1) Endereço perdia a PRIMEIRA linha (rua/av) — o código que
+            evita repetir o nome como endereço tinha um efeito colateral:
+            pulava também a linha seguinte por engano. Corrigido.
+            (2) Fresenius ficava com 0 itens — a unidade "CXA" (caixa)
+            não estava na lista de siglas reconhecidas, então a linha do
+            item não validava. Adicionadas CXA, PCT, F/A, FA à lista.
+            Testado: as 5 NFs reais, uma por uma — nome, CNPJ, IE e
+            endereço 100% corretos nas 5; itens extraídos em todas que
+            tinham produtos.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

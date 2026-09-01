@@ -734,7 +734,7 @@ async function extrairTextoPdfComLinhas(pdf){
    qualquer DANFE de texto (não serve para PDF escaneado/imagem).
 ------------------------------------------------------------------------- */
 
-const NF_UNIDADES = ['UN','UND','UNID','PC','PÇ','CX','FR','FRC','AMP','KG','G','MG','ML','L','MT','M','M2','M3','PT','PAR','RL','TB','KIT','SC','GAL','DZ','LT','CT','BL','FD','JG','RS','SER'];
+const NF_UNIDADES = ['UN','UND','UNID','PC','PÇ','CX','CXA','FR','FRC','AMP','KG','G','MG','ML','L','MT','M','M2','M3','PT','PAR','RL','TB','KIT','SC','GAL','DZ','LT','CT','BL','FD','JG','RS','SER','PCT','F/A','FA'];
 
 function nfEhNumeroDecimal(token){
   return /^\d{1,3}(\.\d{3})*(,\d+)?$/.test(token) || /^\d+([.,]\d+)?$/.test(token);
@@ -782,9 +782,16 @@ function extrairDadosNfPdf(texto){
     // a caixa "DANFE" ficam lado a lado — na reconstrução de linha por
     // posição Y, às vezes grudam e a primeira linha capturada vira só
     // ruído ("DANFE", "Fiscal Eletrônica", etc.), não o nome de verdade.
-    const candidata = ls.find(l => l.length >= 4 && !ruido.test(l) && (!nome || l !== nome));
+    const candidata = ls.find(l => l.length >= 4 && !ruido.test(l));
     if(!nome && candidata) nome = candidata;
-    if(candidata) endereco = ls.slice(ls.indexOf(candidata)+1).filter(l=>!ruido.test(l)).join(', ') || null;
+    if(candidata){
+      const idx = ls.indexOf(candidata);
+      // Se a linha achada é a mesma do nome (caso normal), endereço começa
+      // DEPOIS dela. Se for diferente (nome veio de "RECEBEMOS DE" e essa
+      // linha já é outra coisa, tipo início do endereço), inclui ela.
+      const linhasEndereco = (candidata === nome) ? ls.slice(idx+1) : ls.slice(idx);
+      endereco = linhasEndereco.filter(l=>!ruido.test(l)).join(', ') || null;
+    }
   }
   if(!nome){
     const idxCnpj = linhas.findIndex(l => cnpjEmitente && l.includes(cnpjEmitente));
