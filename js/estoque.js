@@ -1055,11 +1055,13 @@ function prepararImportacaoMaterialPdf(){
       // ele ali mesmo, na hora; sem a permissão, só avisa que precisa
       // pedir liberação ou cadastrar manualmente em Fornecedor.
       let avisoFornecedor = null;
+      let fornecedorId = null;
       if(extraido.fornecedor && extraido.fornecedor.cnpj){
         const respForn = await api('buscarFornecedorPorCnpj', {cnpj: extraido.fornecedor.cnpj});
         const fornecedorExistente = respForn.ok ? respForn.fornecedor : null;
         if(fornecedorExistente){
           avisoFornecedor = {tipo:'existente', nome: fornecedorExistente.nome};
+          fornecedorId = fornecedorExistente.id;
         } else if(temPermissao('autorizar_fornecedor_na_importacao')){
           const nomeFornecedor = extraido.fornecedor.nome || extraido.fornecedor.cnpj;
           if(confirm(`Fornecedor "${nomeFornecedor}" (CNPJ ${extraido.fornecedor.cnpj}) não está cadastrado. Cadastrar agora com os dados lidos da NF?`)){
@@ -1069,6 +1071,7 @@ function prepararImportacaoMaterialPdf(){
             });
             if(respCriar.ok){
               avisoFornecedor = {tipo:'criado', nome: respCriar.fornecedor.nome};
+              fornecedorId = respCriar.fornecedor.id;
               await carregarFornecedoresEstoque();
             } else {
               avisoFornecedor = {tipo:'erro_criar', erro: respCriar.erro};
@@ -1081,7 +1084,7 @@ function prepararImportacaoMaterialPdf(){
         }
       }
 
-      importacaoMaterialResultado = {extraido, avisoFornecedor};
+      importacaoMaterialResultado = {extraido, avisoFornecedor, fornecedorId};
       renderizarRevisaoMaterialPdf();
       status.style.color = 'var(--teal-700)';
       status.textContent = `Lido — ${extraido.itens.length} itens encontrados. Revise abaixo antes de salvar.`;
@@ -1094,16 +1097,16 @@ function prepararImportacaoMaterialPdf(){
 }
 
 function renderizarRevisaoMaterialPdf(){
-  const {extraido, avisoFornecedor} = importacaoMaterialResultado;
+  const {extraido, avisoFornecedor, fornecedorId} = importacaoMaterialResultado;
   const div = document.getElementById('material-pdf-revisao');
   div.style.display = 'block';
 
   const mensagensFornecedor = {
-    existente: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor já cadastrado: ${a.nome}.</p>`,
-    criado: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor "${a.nome}" cadastrado agora, com os dados da NF.</p>`,
+    existente: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor já cadastrado: ${a.nome} — vai ficar vinculado nas entradas.</p>`,
+    criado: a => `<p style="font-size:12.5px;color:var(--teal-700);">Fornecedor "${a.nome}" cadastrado agora, com os dados da NF — vai ficar vinculado nas entradas.</p>`,
     erro_criar: a => `<p style="font-size:12.5px;color:var(--danger);">Não consegui cadastrar o fornecedor: ${a.erro}</p>`,
-    nao_cadastrado_recusado: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não foi cadastrado (você optou por não cadastrar agora).</p>`,
-    nao_cadastrado_sem_permissao: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não está cadastrado, e você não tem permissão pra cadastrá-lo aqui — peça pra um gerente liberar "Autorizar cadastro de Fornecedor durante importação de Material" em Direitos e Privilégios, ou cadastre manualmente na aba Fornecedor.</p>`
+    nao_cadastrado_recusado: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não foi cadastrado — as entradas ficam sem fornecedor vinculado.</p>`,
+    nao_cadastrado_sem_permissao: a => `<p style="font-size:12.5px;color:var(--gold-600);">Fornecedor "${a.nome}" não está cadastrado, e você não tem permissão pra cadastrá-lo aqui — as entradas ficam sem fornecedor vinculado. Peça pra um gerente liberar "Autorizar cadastro de Fornecedor durante importação de Material" em Direitos e Privilégios, ou cadastre manualmente na aba Fornecedor.</p>`
   };
   const blocoFornecedor = avisoFornecedor ? mensagensFornecedor[avisoFornecedor.tipo](avisoFornecedor) : '';
 
@@ -1118,44 +1121,59 @@ function renderizarRevisaoMaterialPdf(){
   div.innerHTML = `
     ${blocoFornecedor}
     <h4 style="margin:16px 0 8px;">Itens encontrados (${extraido.itens.length}) — NF nº ${extraido.numeroNf||'?'}</h4>
-    <p style="font-size:12.5px;color:var(--ink-400);">Só cadastra no catálogo — pra dar entrada no estoque, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
+    <p style="font-size:12.5px;color:var(--ink-400);">Cadastra o material no catálogo (se novo) e já lança a entrada de estoque com a quantidade da nota.</p>
     <div class="tabela-scroll"><table id="tabela-revisao-material">
       <thead><tr><th></th><th>Código</th><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Qtd. (NF)</th><th>NF</th><th>Situação</th></tr></thead>
       <tbody>${extraido.itens.map(item=>`
         <tr data-codigo="${item.codigo}" data-ja-existe="${item.jaExiste?'1':'0'}" data-material-id="${item.materialId||''}">
-          <td><input type="checkbox" class="chk-incluir-material" ${item.jaExiste?'':'checked'}></td>
+          <td><input type="checkbox" class="chk-incluir-material" checked></td>
           <td class="mono">${item.codigo}</td>
           <td><input type="text" class="input-revisao-material-nome" value="${item.descricao.replace(/"/g,'&quot;')}" ${item.jaExiste?'disabled':''} style="width:240px;padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;"></td>
           <td><select class="input-revisao-material-categoria" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesCategoria()}</select></td>
           <td><select class="input-revisao-material-unidade" ${item.jaExiste?'disabled':''} style="padding:6px 9px;border:1.5px solid var(--line);border-radius:7px;">${montarOpcoesUnidade(item.unidade)}</select></td>
           <td class="mono">${item.quantidade!=null?item.quantidade:'—'}</td>
           <td class="mono">${extraido.numeroNf||'—'}</td>
-          <td>${item.jaExiste?'<span style="color:var(--ink-400);">Já no catálogo</span>':'<span style="color:var(--gold-600);">Material novo</span>'}</td>
+          <td>${item.jaExiste?'<span style="color:var(--ink-400);">Já no catálogo — só entrada</span>':'<span style="color:var(--gold-600);">Material novo</span>'}</td>
         </tr>`).join('')}</tbody>
     </table></div>
-    <p style="font-size:12.5px;color:var(--ink-400);">Quantidade e NF são só referência do que veio na nota — pra dar entrada no estoque de verdade, use "Registrar entrada por Nota Fiscal" (Cadastro Manual).</p>
     <div style="margin-top:16px;display:flex;align-items:center;gap:10px;">
-      <button class="botao" id="botao-salvar-material-automatico">Salvar materiais</button>
+      <button class="botao" id="botao-salvar-material-automatico">Salvar materiais + entrada</button>
       <span id="confirmacao-material-automatico" style="font-size:13px;color:var(--teal-700);font-weight:600;"></span>
     </div>`;
 
   document.getElementById('botao-salvar-material-automatico').addEventListener('click', async ()=>{
-    const {extraido} = importacaoMaterialResultado;
+    const {extraido, fornecedorId} = importacaoMaterialResultado;
     const confirmacao = document.getElementById('confirmacao-material-automatico');
     confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
 
-    let materiaisCriados = 0, pulados = 0;
+    const dataEntrada = extraido.dataEmissao || new Date().toISOString().slice(0,10);
+    let materiaisCriados = 0, entradasCriadas = 0, pulados = 0;
     const linhas = document.querySelectorAll('#tabela-revisao-material tbody tr');
     for(const linha of linhas){
       if(!linha.querySelector('.chk-incluir-material').checked){ pulados++; continue; }
-      const jaExiste = linha.dataset.jaExiste === '1';
-      if(jaExiste){ pulados++; continue; }
       const codigo = linha.dataset.codigo;
-      const nome = linha.querySelector('.input-revisao-material-nome').value;
-      const categoria = linha.querySelector('.input-revisao-material-categoria').value;
-      const unidade = linha.querySelector('.input-revisao-material-unidade').value;
-      const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
-      if(respMat.ok) materiaisCriados++;
+      const jaExiste = linha.dataset.jaExiste === '1';
+      let materialId = linha.dataset.materialId || null;
+      const item = extraido.itens.find(i=>i.codigo===codigo);
+
+      if(!jaExiste){
+        const nome = linha.querySelector('.input-revisao-material-nome').value;
+        const categoria = linha.querySelector('.input-revisao-material-categoria').value;
+        const unidade = linha.querySelector('.input-revisao-material-unidade').value;
+        const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
+        if(!respMat.ok) continue;
+        materialId = respMat.material.id;
+        materiaisCriados++;
+      }
+
+      if(materialId && item && item.quantidade){
+        const respEntrada = await api('criarEntradaEstoque', {
+          material_id: materialId, fornecedor_id: fornecedorId||null,
+          nota_fiscal: extraido.numeroNf, data_entrada: dataEntrada,
+          quantidade: nfParaNumero(item.quantidade), valor_unitario: item.valorUnit ? nfParaNumero(item.valorUnit) : null
+        });
+        if(respEntrada.ok) entradasCriadas++;
+      }
     }
 
     await carregarMateriaisEstoque();
@@ -1163,10 +1181,10 @@ function renderizarRevisaoMaterialPdf(){
     await carregarTabelaEntradas();
 
     confirmacao.style.color = 'var(--teal-700)';
-    confirmacao.textContent = `Salvo ✓ — ${materiaisCriados} material(is) novo(s) cadastrado(s), ${pulados} já existiam ou foram desmarcados.`;
+    confirmacao.textContent = `Salvo ✓ — ${materiaisCriados} material(is) novo(s), ${entradasCriadas} entrada(s) lançada(s), ${pulados} desmarcado(s).`;
     importacaoMaterialResultado = null;
     document.getElementById('material-pdf-arquivo').value = '';
-    setTimeout(()=>{ document.getElementById('material-pdf-revisao').style.display = 'none'; }, 2000);
+    setTimeout(()=>{ document.getElementById('material-pdf-revisao').style.display = 'none'; }, 2500);
   });
 }
 

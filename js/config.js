@@ -1435,6 +1435,30 @@
             "Registrar entrada por Nota Fiscal".
             Testado: coluna aparece com o número certo pro material que
             tem nf_origem, e travessão pro que não tem.
+   v6.40.0 — Material → Cadastro Automático volta a lançar entrada de
+            estoque também (não só catálogo), a pedido do usuário —
+            reverte a decisão da v6.32.1. Ao salvar, pra cada item
+            incluído: cadastra o material se for novo (como já fazia), e
+            AGORA também registra a entrada com a quantidade da NF,
+            vinculando o fornecedor quando reconhecido/autorizado
+            (v6.36.0). Itens já cadastrados no catálogo também recebem
+            entrada normalmente (antes eram sempre pulados). Checkbox de
+            cada linha vem marcado por padrão agora, inclusive pra
+            material já existente.
+            Bug real corrigido no processo (era a causa raiz de "a
+            quantidade continua zerada" mesmo depois da v6.38.2): a
+            checagem de "NF repetida" (v6.35.0) bloqueava por NF inteira
+            — então numa nota com vários produtos, só o 1º item
+            conseguia criar entrada, os outros eram silenciosamente
+            recusados achando que era reimportação duplicada. Corrigido
+            pra checar por MATERIAL + NF, não só NF — uma nota
+            legitimamente tem vários itens diferentes.
+            Testado: NF real da HOSPMEDICA (9 itens) — os 9 materiais e
+            as 9 entradas foram criados, estoque total subiu exatamente
+            a soma das quantidades da nota, fornecedor vinculado em
+            todas. Confirmado que reimportar o MESMO material na MESMA
+            NF ainda bloqueia (proteção contra duplicata continua
+            funcionando); material diferente na mesma NF passa normal.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

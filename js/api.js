@@ -417,9 +417,15 @@ async function supabaseApi(acao, dados) {
     // ---------- ESTOQUE — Entrada por NF (cria um lote) ----------
     case 'criarEntradaEstoque': {
       if(dados.nota_fiscal && !dados.permitir_nf_repetida){
-        const { data: existente } = await supabaseClient.from('estoque_lotes').select('id').eq('nota_fiscal', dados.nota_fiscal).limit(1);
+        // Checa por MATERIAL + NF, não só NF — uma NF legitimamente pode
+        // ter vários materiais diferentes (cada um vira uma entrada).
+        // "Repetida" é quando o MESMO material já entrou com essa MESMA
+        // NF antes (reimportação por engano), não quando é só outro item
+        // da mesma nota.
+        const { data: existente } = await supabaseClient.from('estoque_lotes').select('id')
+          .eq('nota_fiscal', dados.nota_fiscal).eq('material_id', dados.material_id).limit(1);
         if(existente && existente.length){
-          return {ok:false, erro:`A NF ${dados.nota_fiscal} já foi importada antes. Se for intencional (nota com múltiplas remessas, correção, etc.), peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
+          return {ok:false, erro:`Esse material já tem entrada registrada com a NF ${dados.nota_fiscal}. Se for intencional (correção, remessa duplicada mesmo), peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
         }
       }
       const { data, error } = await supabaseClient.from('estoque_lotes').insert({
@@ -1191,9 +1197,9 @@ function mockApi(acao, dados) {
     }
     case 'criarEntradaEstoque': {
       if(dados.nota_fiscal && !dados.permitir_nf_repetida){
-        const jaExiste = demo.estoqueLotes.some(l=>l.nota_fiscal===dados.nota_fiscal);
+        const jaExiste = demo.estoqueLotes.some(l=>l.nota_fiscal===dados.nota_fiscal && l.material_id===dados.material_id);
         if(jaExiste){
-          return {ok:false, erro:`A NF ${dados.nota_fiscal} já foi importada antes. Se for intencional, peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
+          return {ok:false, erro:`Esse material já tem entrada registrada com a NF ${dados.nota_fiscal}. Se for intencional, peça pra alguém com a permissão "Importar NF já importada antes" liberar.`, nfRepetida:true};
         }
       }
       const novo = {
