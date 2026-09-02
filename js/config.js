@@ -1425,6 +1425,16 @@
             Confirmado (sem regressão): colunas Qtd.(NF)/NF da importação
             de Material (v6.38.2) continuam intactas no código — não
             foram tocadas nesta entrega.
+   v6.39.1 — Listagem de Materiais ganhou coluna "NF origem", a pedido do
+            usuário — mostra de qual NF o material veio na primeira vez
+            (campo materiais.nf_origem, já existia desde v6.31.0, só não
+            aparecia em tela nenhuma). Confirmado com o usuário: "Qtd. em
+            estoque" zerada pra material recém-importado via Cadastro
+            Automático é esperado — essa tela só cadastra catálogo, não
+            lança entrada (decisão da v6.32.1); pra dar entrada, usa
+            "Registrar entrada por Nota Fiscal".
+            Testado: coluna aparece com o número certo pro material que
+            tem nf_origem, e travessão pro que não tem.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

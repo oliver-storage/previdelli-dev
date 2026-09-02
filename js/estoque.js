@@ -135,7 +135,7 @@ async function renderizarCatalogoMateriais(){
   lotes.forEach(l=>{ quantidadePorMaterial[l.material_id] = (quantidadePorMaterial[l.material_id]||0) + Number(l.quantidade_atual||0); });
 
   tabela.innerHTML = `
-    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>Qtd. em estoque</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>Categoria</th><th>Unidade</th><th>NF origem</th><th>Qtd. em estoque</th><th>Estoque mínimo</th><th>Valor</th><th>Ativo</th><th></th></tr></thead>
     <tbody>${estoqueCacheMateriais.map(m=>{
       const qtd = quantidadePorMaterial[m.id] || 0;
       const abaixoDoMinimo = qtd < Number(m.estoque_minimo||0);
@@ -144,6 +144,7 @@ async function renderizarCatalogoMateriais(){
         <td>${m.nome}</td>
         <td>${m.categoria||'—'}</td>
         <td>${m.unidade||'unidade'}</td>
+        <td class="mono">${m.nf_origem||'—'}</td>
         <td class="mono" style="${abaixoDoMinimo?'color:var(--danger);font-weight:600;':''}">${qtd}${abaixoDoMinimo?' ⚠':''}</td>
         <td class="mono">${m.estoque_minimo||0}</td>
         <td class="mono">${m.valor_referencia!=null ? 'R$ '+Number(m.valor_referencia).toFixed(2).replace('.',',') : '—'}</td>
