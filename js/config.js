@@ -1571,6 +1571,27 @@
             de Frascos aparece só quando é biópsia de verdade, não em
             outros pares (testado com preparo de colonoscopia); tela de
             Configurações lista os pares cadastrados corretamente.
+   v6.43.1 — Caso especial de Biópsia, a pedido do usuário: biópsia não é
+            um "par de valor fixo" como Preparo↔Preparo Colonoscopia — é
+            uma regra de bloqueio. Estendida a MESMA tela/tabela da
+            v6.43.0 (não criou nada separado, como pedido): checkbox nova
+            "Bloquear Exame (é biópsia — só Frascos importa)" no
+            formulário de adicionar par. Marcando ela, o campo Exame do
+            formulário some da seleção (não precisa escolher valor) —
+            salva com valor_exame null e bloqueia_exame=true.
+            No Lançamento/modal de edição: quando o Atendimento escolhido
+            bate com uma regra dessas, o campo Exame limpa e fica
+            DESABILITADO (não dá pra marcar nada nele) — só Frascos fica
+            disponível e destacado. Trocando pra outro Atendimento sem
+            essa regra, Exame volta ao normal (reabilita, e sincroniza
+            com pares comuns se houver).
+            Requer SQL: sql/14_pares_sincronizacao_bloqueia_exame.sql
+            (coluna nova na tabela já existente, valor_exame vira
+            opcional).
+            Testado: par de bloqueio limpa e desabilita Exame, destaca
+            Frascos; trocar pra outro atendimento reabilita Exame e não
+            interfere no par normal (Preparo) que continua funcionando
+            do lado dele.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

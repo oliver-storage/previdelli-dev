@@ -807,24 +807,35 @@ function ligarSincronizacaoAtendimentoExame(prefixo){
 
   const destacarFrascosSePreciso = () => {
     if(!campoFrascos) return;
-    const ehBiopsia = /BI[ÓO]PSIA/i.test(campoAtendimento.value) || /BI[ÓO]PSIA/i.test(campoExame.value);
+    const ehBiopsia = /BI[ÓO]PSIA/i.test(campoAtendimento.value) || /BI[ÓO]PSIA/i.test(campoExame.value) || campoExame.disabled;
     campoFrascos.style.outline = ehBiopsia ? '2px solid var(--gold-600)' : '';
     campoFrascos.style.borderRadius = ehBiopsia ? '8px' : '';
   };
 
+  const aplicarBloqueioSePreciso = () => {
+    const parBloqueio = (estado.paresSincronizacao||[]).find(p=>p.bloqueia_exame && p.valor_atendimento===campoAtendimento.value);
+    campoExame.disabled = !!parBloqueio;
+    if(parBloqueio) campoExame.value = '';
+  };
+
   campoAtendimento.addEventListener('change', ()=>{
-    const par = (estado.paresSincronizacao||[]).find(p=>p.valor_atendimento===campoAtendimento.value);
-    if(par && campoExame.value !== par.valor_exame){
-      campoExame.value = par.valor_exame;
+    aplicarBloqueioSePreciso();
+    if(!campoExame.disabled){
+      const par = (estado.paresSincronizacao||[]).find(p=>!p.bloqueia_exame && p.valor_atendimento===campoAtendimento.value);
+      if(par && campoExame.value !== par.valor_exame){
+        campoExame.value = par.valor_exame;
+      }
     }
     destacarFrascosSePreciso();
   });
   campoExame.addEventListener('change', ()=>{
-    const par = (estado.paresSincronizacao||[]).find(p=>p.valor_exame===campoExame.value);
+    const par = (estado.paresSincronizacao||[]).find(p=>!p.bloqueia_exame && p.valor_exame===campoExame.value);
     if(par && campoAtendimento.value !== par.valor_atendimento){
       campoAtendimento.value = par.valor_atendimento;
+      aplicarBloqueioSePreciso();
     }
     destacarFrascosSePreciso();
   });
+  aplicarBloqueioSePreciso();
   destacarFrascosSePreciso();
 }

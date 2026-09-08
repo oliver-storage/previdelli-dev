@@ -178,7 +178,7 @@ async function supabaseApi(acao, dados) {
     }
     case 'criarParSincronizacao': {
       const { data, error } = await supabaseClient.from('pares_sincronizacao_lancamento')
-        .insert({valor_atendimento: dados.valor_atendimento, valor_exame: dados.valor_exame}).select().single();
+        .insert({valor_atendimento: dados.valor_atendimento, valor_exame: dados.bloqueia_exame ? null : dados.valor_exame, bloqueia_exame: !!dados.bloqueia_exame}).select().single();
       if(error) return {ok:false, erro:error.message};
       return {ok:true, par:data};
     }
@@ -1496,7 +1496,7 @@ function mockApi(acao, dados) {
     }
     case 'criarParSincronizacao': {
       demo.paresSincronizacao = demo.paresSincronizacao || [];
-      const novo = {id:'demo-par-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), valor_atendimento:dados.valor_atendimento, valor_exame:dados.valor_exame, criado_em:new Date().toISOString()};
+      const novo = {id:'demo-par-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), valor_atendimento:dados.valor_atendimento, valor_exame: dados.bloqueia_exame ? null : dados.valor_exame, bloqueia_exame: !!dados.bloqueia_exame, criado_em:new Date().toISOString()};
       demo.paresSincronizacao.push(novo);
       return {ok:true, par:novo};
     }

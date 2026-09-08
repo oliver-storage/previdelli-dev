@@ -23,6 +23,7 @@ de novo sem duplicar nada, exceto o `06_listas_especialidades.sql`, que faz um
 | `11_materiais_valor_codigo_barras.sql` | v6.34.0 | Valor de referência e código de barras no Material |
 | `12_listas_categorias_unidades_material.sql` | v6.37.0 | Categorias e Unidades de Material viram listas gerenciáveis (com valores padrão semeados) |
 | `13_pares_sincronizacao_lancamento.sql` | v6.43.0 | Tabela de pares Atendimento↔Exame que sincronizam entre si no Lançamento |
+| `14_pares_sincronizacao_bloqueia_exame.sql` | v6.43.1 | Coluna bloqueia_exame na tabela de pares — caso especial de Biópsia (Exame fica bloqueado) |
 
 ## BASE_DE_DADOS.md
 

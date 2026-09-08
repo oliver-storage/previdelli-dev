@@ -51,6 +51,9 @@
               <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
                 <select id="config-par-atendimento" style="flex:1;min-width:180px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--line);"></select>
                 <select id="config-par-exame" style="flex:1;min-width:180px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--line);"></select>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-600);cursor:pointer;white-space:nowrap;">
+                  <input type="checkbox" id="config-par-bloqueia-exame" style="width:auto;"> Bloquear Exame (é biópsia — só Frascos importa)
+                </label>
                 <button class="botao secundario" id="botao-adicionar-par-sincronizacao">Adicionar par</button>
               </div>
               <div class="tabela-scroll"><table id="tabela-pares-sincronizacao"></table></div>

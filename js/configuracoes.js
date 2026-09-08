@@ -518,6 +518,7 @@ let paresSincronizacaoPronto = false;
 function prepararParesSincronizacao(){
   const selAtendimento = document.getElementById('config-par-atendimento');
   const selExame = document.getElementById('config-par-exame');
+  const chkBloqueia = document.getElementById('config-par-bloqueia-exame');
   selAtendimento.innerHTML = '<option value="">— Atendimento —</option>' + (estado.listas.procedimentos||[]).filter(Boolean).map(v=>`<option>${v}</option>`).join('');
   selExame.innerHTML = '<option value="">— Exame —</option>' + (estado.listas.exames||[]).filter(Boolean).map(v=>`<option>${v}</option>`).join('');
 
@@ -525,20 +526,29 @@ function prepararParesSincronizacao(){
   if(paresSincronizacaoPronto) return;
   paresSincronizacaoPronto = true;
 
+  // Marcar "Bloquear Exame" não precisa de valor de Exame — desabilita o
+  // select pra deixar claro que não se aplica nesse caso.
+  chkBloqueia.addEventListener('change', ()=>{
+    selExame.disabled = chkBloqueia.checked;
+    if(chkBloqueia.checked) selExame.value = '';
+  });
+
   document.getElementById('botao-adicionar-par-sincronizacao').addEventListener('click', async ()=>{
     const valorAtendimento = selAtendimento.value;
     const valorExame = selExame.value;
+    const bloqueiaExame = chkBloqueia.checked;
     const confirmacao = document.getElementById('confirmacao-par-sincronizacao');
-    if(!valorAtendimento || !valorExame){
-      confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = 'Escolha os dois lados do par.';
+    if(!valorAtendimento || (!bloqueiaExame && !valorExame)){
+      confirmacao.style.color = 'var(--danger)';
+      confirmacao.textContent = bloqueiaExame ? 'Escolha o Atendimento.' : 'Escolha os dois lados do par (ou marque "Bloquear Exame").';
       return;
     }
     confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
-    const resp = await api('criarParSincronizacao', {valor_atendimento: valorAtendimento, valor_exame: valorExame});
+    const resp = await api('criarParSincronizacao', {valor_atendimento: valorAtendimento, valor_exame: valorExame, bloqueia_exame: bloqueiaExame});
     if(!resp.ok){ confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
     estado.paresSincronizacao.push(resp.par);
     confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Par adicionado ✓';
-    selAtendimento.value = ''; selExame.value = '';
+    selAtendimento.value = ''; selExame.value = ''; chkBloqueia.checked = false; selExame.disabled = false;
     renderizarParesSincronizacao();
     setTimeout(()=>{ if(confirmacao.textContent==='Par adicionado ✓') confirmacao.textContent=''; }, 2500);
   });
@@ -553,7 +563,7 @@ function renderizarParesSincronizacao(){
     <tbody>${pares.map(p=>`
       <tr data-id="${p.id}">
         <td>${p.valor_atendimento}</td>
-        <td>${p.valor_exame}</td>
+        <td>${p.bloqueia_exame ? '<span style="color:var(--gold-600);font-weight:600;">Exame bloqueado (só Frascos)</span>' : p.valor_exame}</td>
         <td>${podeExcluir?`<button class="botao sutil pequeno botao-excluir-par-sincronizacao" data-id="${p.id}">Excluir</button>`:''}</td>
       </tr>`).join('')}</tbody>`;
 
