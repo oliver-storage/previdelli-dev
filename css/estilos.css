@@ -274,6 +274,11 @@
     background:var(--teal-100);color:var(--teal-700);
   }
   .tag.tag-alerta{background:var(--gold-100);color:var(--gold-600);margin:2px;}
+  .badge-alerta{
+    display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+    padding:0 5px;border-radius:100px;font-size:11px;font-weight:700;
+    background:var(--danger);color:#fff;vertical-align:middle;margin-left:4px;
+  }
   .vazio{text-align:center;color:var(--ink-400);padding:40px 20px;font-size:14px;}
 
 

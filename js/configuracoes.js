@@ -75,6 +75,7 @@ async function atualizarConfiguracoes(){
   document.getElementById('config-nome-clinica').value = nomeClinicaAtual;
   prepararSelectListaConfig();
   renderizarItensListaConfig();
+  prepararParesSincronizacao();
   prepararLogoCores();
   prepararTemaGrafico();
   if(estado.logoClinica && !logoBase64Pendente){
@@ -508,6 +509,61 @@ CREATE POLICY acesso_total_anon ON permissoes FOR ALL USING (true) WITH CHECK (t
         alert(resp.erro || 'Não foi possível salvar essa permissão.');
         chk.checked = valorAnterior;
       }
+    });
+  });
+}
+
+
+let paresSincronizacaoPronto = false;
+function prepararParesSincronizacao(){
+  const selAtendimento = document.getElementById('config-par-atendimento');
+  const selExame = document.getElementById('config-par-exame');
+  selAtendimento.innerHTML = '<option value="">— Atendimento —</option>' + (estado.listas.procedimentos||[]).filter(Boolean).map(v=>`<option>${v}</option>`).join('');
+  selExame.innerHTML = '<option value="">— Exame —</option>' + (estado.listas.exames||[]).filter(Boolean).map(v=>`<option>${v}</option>`).join('');
+
+  renderizarParesSincronizacao();
+  if(paresSincronizacaoPronto) return;
+  paresSincronizacaoPronto = true;
+
+  document.getElementById('botao-adicionar-par-sincronizacao').addEventListener('click', async ()=>{
+    const valorAtendimento = selAtendimento.value;
+    const valorExame = selExame.value;
+    const confirmacao = document.getElementById('confirmacao-par-sincronizacao');
+    if(!valorAtendimento || !valorExame){
+      confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = 'Escolha os dois lados do par.';
+      return;
+    }
+    confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
+    const resp = await api('criarParSincronizacao', {valor_atendimento: valorAtendimento, valor_exame: valorExame});
+    if(!resp.ok){ confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
+    estado.paresSincronizacao.push(resp.par);
+    confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Par adicionado ✓';
+    selAtendimento.value = ''; selExame.value = '';
+    renderizarParesSincronizacao();
+    setTimeout(()=>{ if(confirmacao.textContent==='Par adicionado ✓') confirmacao.textContent=''; }, 2500);
+  });
+}
+
+function renderizarParesSincronizacao(){
+  const tabela = document.getElementById('tabela-pares-sincronizacao');
+  const pares = estado.paresSincronizacao || [];
+  const podeExcluir = estado.papel === 'gerente';
+  tabela.innerHTML = pares.length===0 ? '<tr><td class="vazio">Nenhum par cadastrado ainda.</td></tr>' : `
+    <thead><tr><th>Atendimento</th><th>Exame</th><th></th></tr></thead>
+    <tbody>${pares.map(p=>`
+      <tr data-id="${p.id}">
+        <td>${p.valor_atendimento}</td>
+        <td>${p.valor_exame}</td>
+        <td>${podeExcluir?`<button class="botao sutil pequeno botao-excluir-par-sincronizacao" data-id="${p.id}">Excluir</button>`:''}</td>
+      </tr>`).join('')}</tbody>`;
+
+  tabela.querySelectorAll('.botao-excluir-par-sincronizacao').forEach(botao=>{
+    botao.addEventListener('click', async ()=>{
+      if(!confirm('Excluir esse par de sincronização?')) return;
+      const resp = await api('excluirParSincronizacao', {id: botao.dataset.id});
+      if(!resp.ok){ alert(resp.erro || 'Não foi possível excluir.'); return; }
+      estado.paresSincronizacao = estado.paresSincronizacao.filter(p=>p.id!==botao.dataset.id);
+      renderizarParesSincronizacao();
     });
   });
 }

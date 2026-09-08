@@ -18,12 +18,18 @@ async function iniciarApp(){
   document.getElementById('app').style.display = 'flex';
   document.getElementById('faixa-demo').style.display = MODO_DEMO ? 'block' : 'none';
   document.getElementById('nome-usuario-topo').textContent = estado.nomeProfissional || estado.usuario;
+  atualizarBadgeDispensacaoPendente();
 
 
   try{
     const listasResp = await api('listarListas');
     if(!listasResp.ok) throw new Error(listasResp.erro || 'A planilha não respondeu como esperado.');
     estado.listas = listasResp.listas || {};
+
+    try{
+      const respPares = await api('listarParesSincronizacao', {});
+      estado.paresSincronizacao = respPares.ok ? (respPares.pares||[]) : [];
+    }catch(e){ estado.paresSincronizacao = []; }
 
     // Cadastro de Pacientes/Profissionais (ver conversa de criação) — só a
     // lista de profissionais é carregada inteira aqui (são poucos, ~30);
@@ -782,3 +788,43 @@ function lerValoresCampos(prefixo='campo_'){
 }
 
 
+
+/* ---------------------------------------------------------------------
+   SINCRONIZAÇÃO ATENDIMENTO ↔ EXAME — pares cadastrados em Configurações
+   → Cadastros do Sistema (estado.paresSincronizacao). Quando um dos dois
+   campos bate com um lado de um par, o outro campo sincroniza sozinho.
+   Se o valor resultante (em qualquer um dos dois) contiver "BIÓPSIA", o
+   campo Frascos é destacado como lembrete (não preenche a quantidade,
+   isso varia por caso).
+   Reutilizável nos dois formulários que têm Atendimento/Exame/Frascos:
+   Lançamento (prefixo 'campo_') e o modal de edição (prefixo 'modal_').
+--------------------------------------------------------------------- */
+function ligarSincronizacaoAtendimentoExame(prefixo){
+  const campoAtendimento = document.getElementById(prefixo+'procedimento');
+  const campoExame = document.getElementById(prefixo+'exames');
+  const campoFrascos = document.getElementById(prefixo+'biopsias');
+  if(!campoAtendimento || !campoExame) return;
+
+  const destacarFrascosSePreciso = () => {
+    if(!campoFrascos) return;
+    const ehBiopsia = /BI[ÓO]PSIA/i.test(campoAtendimento.value) || /BI[ÓO]PSIA/i.test(campoExame.value);
+    campoFrascos.style.outline = ehBiopsia ? '2px solid var(--gold-600)' : '';
+    campoFrascos.style.borderRadius = ehBiopsia ? '8px' : '';
+  };
+
+  campoAtendimento.addEventListener('change', ()=>{
+    const par = (estado.paresSincronizacao||[]).find(p=>p.valor_atendimento===campoAtendimento.value);
+    if(par && campoExame.value !== par.valor_exame){
+      campoExame.value = par.valor_exame;
+    }
+    destacarFrascosSePreciso();
+  });
+  campoExame.addEventListener('change', ()=>{
+    const par = (estado.paresSincronizacao||[]).find(p=>p.valor_exame===campoExame.value);
+    if(par && campoAtendimento.value !== par.valor_atendimento){
+      campoAtendimento.value = par.valor_atendimento;
+    }
+    destacarFrascosSePreciso();
+  });
+  destacarFrascosSePreciso();
+}

@@ -170,6 +170,23 @@ async function supabaseApi(acao, dados) {
       return {ok:true, listas};
     }
 
+    // Pares Atendimento↔Exame que devem sincronizar entre si (v6.43.0).
+    case 'listarParesSincronizacao': {
+      const { data, error } = await supabaseClient.from('pares_sincronizacao_lancamento').select('*').order('criado_em');
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, pares: data||[]};
+    }
+    case 'criarParSincronizacao': {
+      const { data, error } = await supabaseClient.from('pares_sincronizacao_lancamento')
+        .insert({valor_atendimento: dados.valor_atendimento, valor_exame: dados.valor_exame}).select().single();
+      if(error) return {ok:false, erro:error.message};
+      return {ok:true, par:data};
+    }
+    case 'excluirParSincronizacao': {
+      const { error } = await supabaseClient.from('pares_sincronizacao_lancamento').delete().eq('id', dados.id);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+
 
     case 'adicionarItemLista': {
       const { data: existentes, error: errBusca } = await supabaseClient.from('listas').select('valor').eq('tipo', dados.coluna);
@@ -1473,6 +1490,19 @@ function mockApi(acao, dados) {
       const copiaListas = {};
       Object.keys(demo.listas).forEach(k=>copiaListas[k]=demo.listas[k].slice());
       return {ok:true, listas:copiaListas};
+    }
+    case 'listarParesSincronizacao': {
+      return {ok:true, pares: (demo.paresSincronizacao||[]).slice()};
+    }
+    case 'criarParSincronizacao': {
+      demo.paresSincronizacao = demo.paresSincronizacao || [];
+      const novo = {id:'demo-par-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), valor_atendimento:dados.valor_atendimento, valor_exame:dados.valor_exame, criado_em:new Date().toISOString()};
+      demo.paresSincronizacao.push(novo);
+      return {ok:true, par:novo};
+    }
+    case 'excluirParSincronizacao': {
+      demo.paresSincronizacao = (demo.paresSincronizacao||[]).filter(p=>p.id!==dados.id);
+      return {ok:true};
     }
     case 'listarProducao': {
       let registros = demo.producao.slice();

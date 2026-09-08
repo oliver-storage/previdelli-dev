@@ -121,6 +121,7 @@ function montarFormularioLancamento(){
   aplicarTravasCondicionadasDoFormulario('campo_');
   ligarAutocompletePaciente('campo_');
   ligarBotaoNovoPacienteRapido('campo_');
+  ligarSincronizacaoAtendimentoExame('campo_');
   const selProfLancamento = document.getElementById('campo_prof');
   if(selProfLancamento){
     selProfLancamento.addEventListener('change', ()=>aplicarTravasCondicionadasDoFormulario('campo_'));

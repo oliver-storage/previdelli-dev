@@ -1525,6 +1525,52 @@
             Testado: profissional comum abre travado no próprio nome, com
             dropdown desabilitado e sem "Todos os solicitantes"; gerente
             continua vendo tudo normal, dropdown liberado.
+   v6.42.0 — 3 pedidos do usuário nesta leva:
+            (1) Corrigido: Material → Cadastro Automático extraía o
+            valor unitário da NF (item.valorUnit) mas nunca passava pro
+            criarMaterial — o campo "Valor de referência" ficava sempre
+            vazio em material importado, mesmo a NF tendo o valor. Agora
+            salva certo.
+            (2) Início: os cards "Hoje/Mês — Térreo/Coparticipados"
+            (que juntavam quantidade e valor num texto só, tipo "0 • R$
+            0,00") viraram 4 cards separados por período — Atendimentos
+            Térreo, Faturamento Térreo, Atendimentos Coparticipados,
+            Faturamento Coparticipados — no mesmo padrão que os cards de
+            total já usavam (Atendimentos hoje / Faturamento hoje
+            separados). Grid é auto-fit, então acomoda os cards extras
+            sem precisar mexer em layout.
+            (3) Estoque: sub-aba "Solicitar" renomeada "Solicitações";
+            "Dispensar" renomeada "Dispensação", com um badge numérico
+            vermelho ao lado mostrando quantas solicitações estão
+            aguardando dispensação — mesmo badge aparece também ao lado
+            do nome do usuário logado, no topo (só pra quem tem permissão
+            de dispensar — farmácia/gerente). Badge some quando chega a
+            zero, atualiza sozinho depois de qualquer ação que mude a
+            fila (criar/cancelar/dispensar/negar solicitação).
+            Testado: material importado salva com valor de referência;
+            os 4 cards separados de Térreo/Coparticipados aparecem
+            preenchidos (hoje e mês); sub-abas com nome novo; badge
+            aparece com o número certo na aba E no topo, sincronizados.
+   v6.43.0 — Sincronização Atendimento ↔ Exame, a pedido do usuário
+            (começou como "quando um dos 3 for biópsia, os 3 devem ser
+            biópsia" e generalizou pro caso do "PREPARO ↔ PREPARO
+            COLONOSCOPIA" também). Nova tela em Configurações →
+            Cadastros do Sistema → "Sincronização Atendimento ↔ Exame":
+            cadastra pares (ex.: Atendimento "PROCEDIMENTO" ↔ Exame
+            "PUNÇÃO BIÓPSIA..."), gerenciável (adicionar/excluir).
+            No Lançamento e no modal de edição: escolher um lado de um
+            par cadastrado já preenche o outro lado sozinho, nos dois
+            sentidos (Atendimento→Exame e Exame→Atendimento). Se o valor
+            resultante (em Atendimento OU Exame) contiver "BIÓPSIA", o
+            campo Frascos fica destacado com contorno dourado como
+            lembrete — não preenche a quantidade sozinho, isso varia
+            por caso e precisa de conferência humana.
+            Requer SQL: sql/13_pares_sincronizacao_lancamento.sql (tabela
+            nova, RLS igual ao padrão do resto do sistema).
+            Testado: pares nos dois sentidos sincronizam certo; destaque
+            de Frascos aparece só quando é biópsia de verdade, não em
+            outros pares (testado com preparo de colonoscopia); tela de
+            Configurações lista os pares cadastrados corretamente.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

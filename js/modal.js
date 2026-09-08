@@ -26,6 +26,7 @@ function abrirModal(registro, camposPendentes, contexto){
     .join('') + htmlSecaoFormaPagamento('modal_', destacarPagamento);
   ligarAutocompletePaciente('modal_');
   ligarBotaoNovoPacienteRapido('modal_');
+  ligarSincronizacaoAtendimentoExame('modal_');
   // Mostra Nascimento/CPF de referência ao abrir um lançamento já
   // existente — busca em segundo plano, não trava a abertura do modal.
   // NÃO mexe em Convênio/Carteirinha aqui (esses já vieram do próprio

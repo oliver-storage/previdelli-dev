@@ -33,7 +33,7 @@ function prepararSubNavEstoque(){
     'estoque-dispensados': podeSolicitar || podeDispensar,
     'estoque-relatorio': podeEditar || podeDispensar
   };
-  const rotulos = {'estoque-materiais':'Fornecedor','estoque-entrada':'Material','estoque-solicitar':'Solicitar','estoque-dispensar':'Dispensar','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
+  const rotulos = {'estoque-materiais':'Fornecedor','estoque-entrada':'Material','estoque-solicitar':'Solicitações','estoque-dispensar':'Dispensação <span id="badge-dispensacao-pendente" class="badge-alerta" style="display:none;"></span>','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
   const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);
   const nav = document.getElementById('sub-nav-estoque');
   if(!disponiveis.includes(estado.subAbaEstoque)) estado.subAbaEstoque = disponiveis[0] || null;
@@ -470,6 +470,7 @@ async function carregarMinhasSolicitacoes(){
   const resp = await api('listarSolicitacoesMaterial', {status:'pendente'});
   const tabela = document.getElementById('tabela-minhas-solicitacoes');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
+  atualizarBadgeDispensacaoPendente();
   const podeRetroceder = temPermissao('retroceder_estoque');
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nenhuma solicitação pendente.</td></tr>' : `
     <thead><tr><th>Material</th><th>Qtd.</th><th>Atendimento</th><th>Exame</th><th>Solicitado em</th><th></th></tr></thead>
@@ -493,6 +494,7 @@ async function carregarSolicitacoesPendentes(){
   const resp = await api('listarSolicitacoesMaterial', {status:'pendente'});
   const tabela = document.getElementById('tabela-solicitacoes-pendentes');
   const lista = resp.ok ? (resp.solicitacoes||[]) : [];
+  atualizarBadgeDispensacaoPendente();
   const podeRetroceder = temPermissao('retroceder_estoque');
   tabela.innerHTML = lista.length===0 ? '<tr><td class="vazio">Nenhuma solicitação pendente.</td></tr>' : `
     <thead><tr><th>Material</th><th>Qtd.</th><th>Profissional</th><th>Atendimento</th><th>Exame</th><th>Solicitado por</th><th>Quando</th><th></th></tr></thead>
@@ -1199,7 +1201,7 @@ function renderizarRevisaoMaterialPdf(){
           const nome = linha.querySelector('.input-revisao-material-nome').value;
           const categoria = linha.querySelector('.input-revisao-material-categoria').value;
           const unidade = linha.querySelector('.input-revisao-material-unidade').value;
-          const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
+          const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf, valor_referencia: item.valorUnit ? nfParaNumero(item.valorUnit) : null});
           if(!respMat.ok){ console.log('[Salvar Material] falhou criar material', codigo, respMat.erro); continue; }
           materialId = respMat.material.id;
           materiaisCriados++;
@@ -1306,4 +1308,26 @@ function abrirModalMaterial(material){
 function fecharModalMaterial(){
   document.getElementById('sobreposicao-modal-material').classList.remove('aberta');
   materialEmEdicaoModalId = null;
+}
+
+/* ---------------------------------------------------------------------
+   ALERTA DE DISPENSAÇÃO PENDENTE — badge numérico ao lado da sub-aba
+   "Dispensação" e ao lado do usuário logado (gerente/farmácia), avisando
+   quantas solicitações estão esperando dispensação.
+--------------------------------------------------------------------- */
+async function atualizarBadgeDispensacaoPendente(){
+  if(!temPermissao('dispensar_estoque')) return;
+  const resp = await api('listarSolicitacoesMaterial', {status:'pendente'});
+  const qtd = resp.ok ? (resp.solicitacoes||[]).length : 0;
+
+  const badgeAba = document.getElementById('badge-dispensacao-pendente');
+  if(badgeAba){
+    badgeAba.textContent = qtd;
+    badgeAba.style.display = qtd > 0 ? 'inline-flex' : 'none';
+  }
+  const badgeTopo = document.getElementById('badge-dispensacao-pendente-topo');
+  if(badgeTopo){
+    badgeTopo.textContent = qtd;
+    badgeTopo.style.display = qtd > 0 ? 'inline-flex' : 'none';
+  }
 }

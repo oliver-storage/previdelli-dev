@@ -39,6 +39,25 @@
             </div>
 
 
+            <div class="cartao" style="max-width:620px;">
+              <h3>Sincronização Atendimento ↔ Exame</h3>
+              <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+                Cadastre pares que devem "andar junto" — ex.: Atendimento "BIÓPSIA" com Exame "BIÓPSIA", ou
+                Atendimento "PREPARO" com Exame "PREPARO COLONOSCOPIA". No Lançamento, escolher um dos dois
+                lados de um par preenche o outro automaticamente. Se um dos dois lados de um par tocar em
+                "BIÓPSIA", o campo Frascos fica destacado como lembrete (a quantidade varia por caso, então
+                não preenche sozinho).
+              </p>
+              <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                <select id="config-par-atendimento" style="flex:1;min-width:180px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--line);"></select>
+                <select id="config-par-exame" style="flex:1;min-width:180px;padding:9px 12px;border-radius:8px;border:1.5px solid var(--line);"></select>
+                <button class="botao secundario" id="botao-adicionar-par-sincronizacao">Adicionar par</button>
+              </div>
+              <div class="tabela-scroll"><table id="tabela-pares-sincronizacao"></table></div>
+              <span id="confirmacao-par-sincronizacao" style="display:block;margin-top:10px;font-size:13px;font-weight:600;"></span>
+            </div>
+
+
             <div class="cartao" id="cartao-profissionais-andares" style="max-width:100%;">
               <h3>Profissionais por andar</h3>
               <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">

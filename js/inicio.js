@@ -34,8 +34,8 @@ async function atualizarInicio(){
   const hojeISO = inicioDataDeHojeISO();
   const inicioMesISO = inicioPrimeiroDiaDoMesISO();
 
-  ['atendimentos-hoje','valor-hoje','terreo-hoje','copart-hoje',
-   'atendimentos-mes','valor-mes','terreo-mes','copart-mes'].forEach(id=>{
+  ['atendimentos-hoje','valor-hoje','terreo-hoje-qtd','terreo-hoje-valor','copart-hoje-qtd','copart-hoje-valor',
+   'atendimentos-mes','valor-mes','terreo-mes-qtd','terreo-mes-valor','copart-mes-qtd','copart-mes-valor'].forEach(id=>{
     document.getElementById('inicio-kpi-'+id).textContent = '…';
   });
 
@@ -48,8 +48,10 @@ async function atualizarInicio(){
     const s = inicioSomarPorAndar(respHoje.registros||[]);
     document.getElementById('inicio-kpi-atendimentos-hoje').textContent = s.total.quantidade;
     document.getElementById('inicio-kpi-valor-hoje').textContent = formatarMoeda(s.total.valor);
-    document.getElementById('inicio-kpi-terreo-hoje').textContent = `${s['TÉRREO'].quantidade} • ${formatarMoeda(s['TÉRREO'].valor)}`;
-    document.getElementById('inicio-kpi-copart-hoje').textContent = `${s['COPARTICIPADOS'].quantidade} • ${formatarMoeda(s['COPARTICIPADOS'].valor)}`;
+    document.getElementById('inicio-kpi-terreo-hoje-qtd').textContent = s['TÉRREO'].quantidade;
+    document.getElementById('inicio-kpi-terreo-hoje-valor').textContent = formatarMoeda(s['TÉRREO'].valor);
+    document.getElementById('inicio-kpi-copart-hoje-qtd').textContent = s['COPARTICIPADOS'].quantidade;
+    document.getElementById('inicio-kpi-copart-hoje-valor').textContent = formatarMoeda(s['COPARTICIPADOS'].valor);
   }
 
   if(respMes.ok){
@@ -57,8 +59,10 @@ async function atualizarInicio(){
     const s = inicioSomarPorAndar(registrosMes);
     document.getElementById('inicio-kpi-atendimentos-mes').textContent = s.total.quantidade;
     document.getElementById('inicio-kpi-valor-mes').textContent = formatarMoeda(s.total.valor);
-    document.getElementById('inicio-kpi-terreo-mes').textContent = `${s['TÉRREO'].quantidade} • ${formatarMoeda(s['TÉRREO'].valor)}`;
-    document.getElementById('inicio-kpi-copart-mes').textContent = `${s['COPARTICIPADOS'].quantidade} • ${formatarMoeda(s['COPARTICIPADOS'].valor)}`;
+    document.getElementById('inicio-kpi-terreo-mes-qtd').textContent = s['TÉRREO'].quantidade;
+    document.getElementById('inicio-kpi-terreo-mes-valor').textContent = formatarMoeda(s['TÉRREO'].valor);
+    document.getElementById('inicio-kpi-copart-mes-qtd').textContent = s['COPARTICIPADOS'].quantidade;
+    document.getElementById('inicio-kpi-copart-mes-valor').textContent = formatarMoeda(s['COPARTICIPADOS'].valor);
     inicioDesenharGraficos(registrosMes);
   }
 }
