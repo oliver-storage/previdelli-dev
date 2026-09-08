@@ -1459,6 +1459,72 @@
             todas. Confirmado que reimportar o MESMO material na MESMA
             NF ainda bloqueia (proteção contra duplicata continua
             funcionando); material diferente na mesma NF passa normal.
+   v6.40.1 — Usuário reportou de novo "clique em Salvar e nada acontece,
+            sem mensagem, sem erro" — mesmo padrão que já aconteceu antes
+            com o botão de ler PDF (corrigido em v6.31.1), mas dessa vez
+            no botão SALVAR, que nunca tinha ganhado a mesma proteção.
+            Causa provável: nfParaNumero() chamava .includes() direto no
+            valor sem checar se era string — se algum item viesse com
+            quantidade vazia/undefined (layout de PDF diferente do que
+            testei), OP TypeError explodia no meio do salvamento, sem try/
+            catch nenhum around, e o clique morria em silêncio total (sem
+            nem aparecer no console, dependendo do navegador).
+            Corrigido: nfParaNumero agora trata null/undefined/string
+            vazia/não-numérico sem quebrar (retorna null em vez de
+            lançar erro). Botão Salvar ganhou try/catch completo com
+            log em cada etapa (visível no F12) — se algo falhar agora,
+            aparece a MENSAGEM DE ERRO REAL na tela, nunca mais silêncio.
+            Também: se uma entrada específica falhar (ex.: NF repetida
+            genuína), o restante continua e a confirmação final avisa
+            quais itens falharam e por quê, em vez de só um número.
+            Testado: nfParaNumero não quebra mais com undefined/null/
+            vazio/texto inválido (6 casos); fluxo completo de salvar
+            ainda funciona normal (3 itens, 3 entradas, estoque sobe).
+   v6.41.0 — Estoque → Fornecedor → Cadastro Manual: campos UF e Cidade
+            viraram dropdown (eram texto livre), a pedido do usuário.
+            UF vem antes de Cidade (escolhe o estado primeiro, cidade
+            filtra por ele — ordem lógica). Base: IBGE completo, 27
+            estados, 5.570 municípios (js/dados-cidades.js, novo arquivo,
+            ~84KB, fonte: dados do IBGE via repositório público no
+            GitHub — sem risco de erro de digitação).
+            Editar um fornecedor já cadastrado com UF/cidade antigos
+            (texto livre, de antes dessa mudança) não perde o dado — se
+            não bater com nenhum município da lista, aparece como opção
+            extra selecionada, preservado.
+            Requer SQL: nenhum (não mudou schema, só a UI).
+            Testado: os 27 estados carregam certo; escolher CE mostra só
+            cidades do Ceará (Sobral aparece, Barueri de SP não); editar
+            fornecedor com UF/cidade já preenchidos seleciona os dois
+            certos automaticamente; total de 5.570 municípios confirmado.
+   v6.41.1 — 2 pedidos do usuário:
+            (1) favicon.svg (arquivo solto na raiz, resíduo — o favicon
+            de verdade já roda embutido direto no HTML desde v6.29.3,
+            esse arquivo nunca foi usado) movido pra assets/favicon.svg.
+            (2) Estoque → Material → Listagem: botão Editar agora abre
+            janela flutuante (modal), em vez de rolar até "Cadastro
+            Manual". Revivido e atualizado o modal antigo de Material
+            (existia desde antes da v6.32.0, mas estava desatualizado —
+            sem código do fornecedor, valor de referência, código de
+            barras, e categoria/unidade em texto livre). Agora tem todos
+            os campos atuais, com categoria/unidade em dropdown
+            (alimentado pelas listas gerenciáveis). Criar material novo
+            continua no formulário inline (Cadastro Manual) — só editar
+            que mudou pra modal.
+            Testado: modal abre com os dados certos preenchidos, título
+            muda pra "Editar material", salvar atualiza o banco de
+            verdade e fecha o modal sozinho.
+   v6.41.2 — Estoque → Dispensados: quem não tem permissão de dispensar
+            (solicitante comum) agora abre a aba já travada nos próprios
+            itens — dropdown de solicitante vem fixo no próprio usuário
+            e desabilitado, sem a opção "Todos os solicitantes" (não faz
+            sentido ele ver ou mexer na fila de outra pessoa). Farmácia/
+            gerente continuam vendo o dropdown completo, normal. Nenhuma
+            regra de permissão mudou (quem podia confirmar continua
+            podendo) — só a experiência de quem só solicita ficou mais
+            direta: abre e já vê o que é dele.
+            Testado: profissional comum abre travado no próprio nome, com
+            dropdown desabilitado e sem "Todos os solicitantes"; gerente
+            continua vendo tudo normal, dropdown liberado.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

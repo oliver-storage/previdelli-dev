@@ -157,7 +157,7 @@ async function renderizarCatalogoMateriais(){
     tabela.querySelectorAll('.botao-editar-material').forEach(botao=>{
       botao.addEventListener('click', ()=>{
         const material = estoqueCacheMateriais.find(m=>m.id===botao.dataset.id);
-        if(material) preencherFormMaterial(material);
+        if(material) abrirModalMaterial(material);
       });
     });
   }
@@ -222,6 +222,23 @@ async function excluirMaterialEstoque(id, nome){
    visita à aba.
 --------------------------------------------------------------------- */
 let fornecedorEmEdicaoId = null;
+// Preenche o dropdown de Cidade com os municípios do UF escolhido (base
+// IBGE, js/dados-cidades.js). Se valorAtual bater com um município da
+// lista, já vem selecionado — senão, mesmo assim aparece como opção
+// extra (dado antigo digitado à mão antes disso existir, não perde).
+function preencherOpcoesCidadeFornecedor(uf, valorAtual){
+  const selCidade = document.getElementById('form-fornecedor-cidade');
+  const cidades = CIDADES_POR_UF[uf] || [];
+  if(!uf){
+    selCidade.innerHTML = '<option value="">— escolha o estado primeiro —</option>';
+    return;
+  }
+  const bateNaLista = valorAtual && cidades.some(c=>c.toLowerCase()===valorAtual.toLowerCase());
+  let opcoes = '<option value="">—</option>' + cidades.map(c=>`<option ${valorAtual && c.toLowerCase()===valorAtual.toLowerCase()?'selected':''}>${c}</option>`).join('');
+  if(valorAtual && !bateNaLista) opcoes += `<option selected>${valorAtual}</option>`;
+  selCidade.innerHTML = opcoes;
+}
+
 function preencherFormFornecedor(fornecedor){
   fornecedorEmEdicaoId = fornecedor ? fornecedor.id : null;
   document.getElementById('titulo-form-fornecedor').textContent = fornecedor ? 'Editar fornecedor' : 'Novo fornecedor';
@@ -230,8 +247,8 @@ function preencherFormFornecedor(fornecedor){
   document.getElementById('form-fornecedor-contato').value = fornecedor ? (fornecedor.contato||'') : '';
   document.getElementById('form-fornecedor-ie').value = fornecedor ? (fornecedor.inscricao_estadual||'') : '';
   document.getElementById('form-fornecedor-endereco').value = fornecedor ? (fornecedor.endereco||'') : '';
-  document.getElementById('form-fornecedor-cidade').value = fornecedor ? (fornecedor.cidade||'') : '';
   document.getElementById('form-fornecedor-uf').value = fornecedor ? (fornecedor.uf||'') : '';
+  preencherOpcoesCidadeFornecedor(fornecedor ? (fornecedor.uf||'') : '', fornecedor ? (fornecedor.cidade||'') : '');
   document.getElementById('form-fornecedor-cep').value = fornecedor ? (fornecedor.cep||'') : '';
   document.getElementById('botao-cancelar-edicao-fornecedor').style.display = fornecedor ? 'inline-flex' : 'none';
   if(fornecedor){
@@ -241,6 +258,11 @@ function preencherFormFornecedor(fornecedor){
 }
 
 function prepararFormFornecedor(){
+  const selUf = document.getElementById('form-fornecedor-uf');
+  selUf.innerHTML = '<option value="">—</option>' +
+    Object.keys(UF_NOMES).sort().map(sigla=>`<option value="${sigla}">${sigla} — ${UF_NOMES[sigla]}</option>`).join('');
+  selUf.addEventListener('change', ()=>preencherOpcoesCidadeFornecedor(selUf.value, null));
+
   document.getElementById('botao-cancelar-edicao-fornecedor').addEventListener('click', ()=>preencherFormFornecedor(null));
   document.getElementById('botao-salvar-fornecedor-manual').addEventListener('click', async ()=>{
     const nome = document.getElementById('form-fornecedor-nome').value.trim();
@@ -580,11 +602,22 @@ async function carregarRelatorioEstoque(){
 let dispensadosPronto = false;
 async function prepararDispensados(){
   const selSolicitante = document.getElementById('dispensados-filtro-solicitante');
-  if(selSolicitante.options.length <= 1){
+  const podeVerTodos = temPermissao('dispensar_estoque');
+
+  if(!podeVerTodos){
+    // Quem só solicita (sem permissão de dispensar) não precisa nem
+    // deveria ver a fila de outras pessoas — a aba já abre travada nos
+    // itens dele, sem a opção "Todos os solicitantes".
+    selSolicitante.innerHTML = `<option value="${estado.usuario}">${estado.usuario} (você)</option>`;
+    selSolicitante.value = estado.usuario;
+    selSolicitante.disabled = true;
+  } else if(selSolicitante.options.length <= 1){
+    selSolicitante.disabled = false;
     selSolicitante.innerHTML = '<option value="">Todos os solicitantes</option>' +
       [...new Set((await api('listarSolicitacoesMaterial', {status:['dispensado','confirmado']})).solicitacoes.map(s=>s.solicitado_por).filter(Boolean))]
         .map(u=>`<option value="${u}">${u}</option>`).join('');
   }
+
   await carregarDispensados();
   if(dispensadosPronto) return;
   dispensadosPronto = true;
@@ -742,8 +775,11 @@ function nfEhNumeroDecimal(token){
 }
 function nfParaNumero(token){
   // "1.234,50" → 1234.50 · "1234.50" → 1234.50
-  if(token.includes(',')) return parseFloat(token.replace(/\./g,'').replace(',','.'));
-  return parseFloat(token);
+  if(token==null) return null;
+  token = String(token).trim();
+  if(!token) return null;
+  const n = token.includes(',') ? parseFloat(token.replace(/\./g,'').replace(',','.')) : parseFloat(token);
+  return isNaN(n) ? null : n;
 }
 
 function extrairDadosNfPdf(texto){
@@ -1142,49 +1178,132 @@ function renderizarRevisaoMaterialPdf(){
     </div>`;
 
   document.getElementById('botao-salvar-material-automatico').addEventListener('click', async ()=>{
-    const {extraido, fornecedorId} = importacaoMaterialResultado;
     const confirmacao = document.getElementById('confirmacao-material-automatico');
-    confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
+    console.log('[Salvar Material] botão clicado, iniciando...');
+    try{
+      const {extraido, fornecedorId} = importacaoMaterialResultado;
+      confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
 
-    const dataEntrada = extraido.dataEmissao || new Date().toISOString().slice(0,10);
-    let materiaisCriados = 0, entradasCriadas = 0, pulados = 0;
-    const linhas = document.querySelectorAll('#tabela-revisao-material tbody tr');
-    for(const linha of linhas){
-      if(!linha.querySelector('.chk-incluir-material').checked){ pulados++; continue; }
-      const codigo = linha.dataset.codigo;
-      const jaExiste = linha.dataset.jaExiste === '1';
-      let materialId = linha.dataset.materialId || null;
-      const item = extraido.itens.find(i=>i.codigo===codigo);
+      const dataEntrada = extraido.dataEmissao || new Date().toISOString().slice(0,10);
+      let materiaisCriados = 0, entradasCriadas = 0, pulados = 0, falhasEntrada = [];
+      const linhas = document.querySelectorAll('#tabela-revisao-material tbody tr');
+      console.log('[Salvar Material] linhas encontradas na tabela:', linhas.length);
+      for(const linha of linhas){
+        if(!linha.querySelector('.chk-incluir-material').checked){ pulados++; continue; }
+        const codigo = linha.dataset.codigo;
+        const jaExiste = linha.dataset.jaExiste === '1';
+        let materialId = linha.dataset.materialId || null;
+        const item = extraido.itens.find(i=>i.codigo===codigo);
 
-      if(!jaExiste){
-        const nome = linha.querySelector('.input-revisao-material-nome').value;
-        const categoria = linha.querySelector('.input-revisao-material-categoria').value;
-        const unidade = linha.querySelector('.input-revisao-material-unidade').value;
-        const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
-        if(!respMat.ok) continue;
-        materialId = respMat.material.id;
-        materiaisCriados++;
+        if(!jaExiste){
+          const nome = linha.querySelector('.input-revisao-material-nome').value;
+          const categoria = linha.querySelector('.input-revisao-material-categoria').value;
+          const unidade = linha.querySelector('.input-revisao-material-unidade').value;
+          const respMat = await api('criarMaterial', {nome, categoria, unidade, codigo_fornecedor: codigo, nf_origem: extraido.numeroNf});
+          if(!respMat.ok){ console.log('[Salvar Material] falhou criar material', codigo, respMat.erro); continue; }
+          materialId = respMat.material.id;
+          materiaisCriados++;
+        }
+
+        const quantidadeNum = item ? nfParaNumero(item.quantidade) : null;
+        if(materialId && quantidadeNum){
+          const respEntrada = await api('criarEntradaEstoque', {
+            material_id: materialId, fornecedor_id: fornecedorId||null,
+            nota_fiscal: extraido.numeroNf, data_entrada: dataEntrada,
+            quantidade: quantidadeNum, valor_unitario: item.valorUnit ? nfParaNumero(item.valorUnit) : null
+          });
+          if(respEntrada.ok) entradasCriadas++;
+          else { console.log('[Salvar Material] falhou criar entrada', codigo, respEntrada.erro); falhasEntrada.push(`${codigo}: ${respEntrada.erro}`); }
+        } else {
+          console.log('[Salvar Material] item sem quantidade válida, entrada não criada', codigo, item && item.quantidade);
+        }
       }
 
-      if(materialId && item && item.quantidade){
-        const respEntrada = await api('criarEntradaEstoque', {
-          material_id: materialId, fornecedor_id: fornecedorId||null,
-          nota_fiscal: extraido.numeroNf, data_entrada: dataEntrada,
-          quantidade: nfParaNumero(item.quantidade), valor_unitario: item.valorUnit ? nfParaNumero(item.valorUnit) : null
-        });
-        if(respEntrada.ok) entradasCriadas++;
-      }
+      await carregarMateriaisEstoque();
+      await renderizarCatalogoMateriais();
+      await carregarTabelaEntradas();
+
+      confirmacao.style.color = falhasEntrada.length ? 'var(--gold-600)' : 'var(--teal-700)';
+      confirmacao.textContent = `Salvo ✓ — ${materiaisCriados} material(is) novo(s), ${entradasCriadas} entrada(s) lançada(s), ${pulados} desmarcado(s).`
+        + (falhasEntrada.length ? ` ⚠ ${falhasEntrada.length} entrada(s) falharam: ${falhasEntrada.join(' · ')}` : '');
+      importacaoMaterialResultado = null;
+      document.getElementById('material-pdf-arquivo').value = '';
+      setTimeout(()=>{ if(!falhasEntrada.length) document.getElementById('material-pdf-revisao').style.display = 'none'; }, 2500);
+    }catch(e){
+      console.error('[Salvar Material] erro:', e);
+      confirmacao.style.color = 'var(--danger)';
+      confirmacao.textContent = 'Erro ao salvar: ' + (e && e.message ? e.message : String(e));
     }
-
-    await carregarMateriaisEstoque();
-    await renderizarCatalogoMateriais();
-    await carregarTabelaEntradas();
-
-    confirmacao.style.color = 'var(--teal-700)';
-    confirmacao.textContent = `Salvo ✓ — ${materiaisCriados} material(is) novo(s), ${entradasCriadas} entrada(s) lançada(s), ${pulados} desmarcado(s).`;
-    importacaoMaterialResultado = null;
-    document.getElementById('material-pdf-arquivo').value = '';
-    setTimeout(()=>{ document.getElementById('material-pdf-revisao').style.display = 'none'; }, 2500);
   });
 }
 
+
+/* ---------------------------------------------------------------------
+   MODAL DE EDIÇÃO DE MATERIAL — janela flutuante, a pedido do usuário
+   (era edição inline no card, precisava rolar até "Cadastro Manual").
+   Usado só pelo botão Editar da Listagem — criar material novo continua
+   no formulário inline (Cadastro Manual), nada mudou aí.
+--------------------------------------------------------------------- */
+let materialEmEdicaoModalId = null;
+let modalMaterialPronto = false;
+
+function prepararModalMaterial(){
+  if(modalMaterialPronto) return;
+  modalMaterialPronto = true;
+
+  document.getElementById('modal-material-unidade').innerHTML =
+    (estado.listas.unidades_material||[]).map(v=>`<option>${v}</option>`).join('');
+  document.getElementById('modal-material-categoria').innerHTML = '<option value="">—</option>' +
+    (estado.listas.categorias_material||[]).map(v=>`<option>${v}</option>`).join('');
+
+  document.getElementById('botao-cancelar-modal-material').addEventListener('click', fecharModalMaterial);
+  document.getElementById('sobreposicao-modal-material').addEventListener('click', (ev)=>{
+    if(ev.target.id==='sobreposicao-modal-material') fecharModalMaterial();
+  });
+  document.getElementById('form-modal-material').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const nome = document.getElementById('modal-material-nome').value.trim();
+    if(!nome){ alert('Preencha o nome do material.'); return; }
+    const botao = ev.target.querySelector('button[type="submit"]');
+    const rotuloOriginal = botao.textContent;
+    botao.disabled = true; botao.textContent = 'Salvando...';
+    const dadosMaterial = {
+      nome,
+      categoria: document.getElementById('modal-material-categoria').value,
+      unidade: document.getElementById('modal-material-unidade').value || 'unidade',
+      estoque_minimo: document.getElementById('modal-material-estoque-minimo').value,
+      codigo_fornecedor: document.getElementById('modal-material-codigo-fornecedor').value,
+      valor_referencia: document.getElementById('modal-material-valor-referencia').value,
+      codigo_barras: document.getElementById('modal-material-codigo-barras').value,
+      ativo: document.getElementById('modal-material-ativo').checked
+    };
+    const resp = materialEmEdicaoModalId
+      ? await api('atualizarMaterial', Object.assign({id: materialEmEdicaoModalId}, dadosMaterial))
+      : await api('criarMaterial', dadosMaterial);
+    botao.disabled = false; botao.textContent = rotuloOriginal;
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar.'); return; }
+    fecharModalMaterial();
+    await carregarMateriaisEstoque();
+    await renderizarCatalogoMateriais();
+  });
+}
+
+function abrirModalMaterial(material){
+  prepararModalMaterial();
+  materialEmEdicaoModalId = material ? material.id : null;
+  document.getElementById('titulo-modal-material').textContent = material ? 'Editar material' : 'Novo material';
+  document.getElementById('modal-material-nome').value = material ? material.nome : '';
+  document.getElementById('modal-material-categoria').value = material ? (material.categoria||'') : '';
+  document.getElementById('modal-material-unidade').value = material ? (material.unidade||'unidade') : 'unidade';
+  document.getElementById('modal-material-estoque-minimo').value = material ? (material.estoque_minimo||0) : '';
+  document.getElementById('modal-material-codigo-fornecedor').value = material ? (material.codigo_fornecedor||'') : '';
+  document.getElementById('modal-material-valor-referencia').value = material ? (material.valor_referencia!=null ? material.valor_referencia : '') : '';
+  document.getElementById('modal-material-codigo-barras').value = material ? (material.codigo_barras||'') : '';
+  document.getElementById('modal-material-ativo').checked = material ? material.ativo!==false : true;
+  document.getElementById('sobreposicao-modal-material').classList.add('aberta');
+}
+
+function fecharModalMaterial(){
+  document.getElementById('sobreposicao-modal-material').classList.remove('aberta');
+  materialEmEdicaoModalId = null;
+}
