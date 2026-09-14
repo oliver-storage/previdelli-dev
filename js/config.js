@@ -1592,6 +1592,44 @@
             Frascos; trocar pra outro atendimento reabilita Exame e não
             interfere no par normal (Preparo) que continua funcionando
             do lado dele.
+   v6.44.0 — 2 pedidos do usuário nesta leva:
+            (1) Investigado "Crítica não traz nenhum dado" — confirmado
+            junto com o usuário que NÃO era bug: era o mês/ano
+            selecionado (atual) sem lançamento ainda cadastrado; mudando
+            pro mês certo, apareceu normal. Nenhum código mudou aqui.
+            (2) Crítica ganhou uma pendência nova: "Carteirinha
+            (Unimed)". Diferente dos outros campos obrigatórios, é
+            condicional — só vira pendência quando o Convênio do
+            lançamento contém "Unimed" (qualquer variação — Unimed
+            Central, etc.) E a Carteirinha está vazia. Pra qualquer
+            outro convênio, carteirinha continua opcional, sem gerar
+            pendência.
+            Também gerado (via prompt separado, não faz parte deste
+            código) o SQL de importação em lote de 83 materiais que o
+            usuário mandou numa lista, com Estoque Inicial e Estoque
+            Mínimo — sql/15_importacao_lote_materiais.sql.
+            Testado: Unimed sem carteirinha vira pendência; Unimed com
+            carteirinha não vira; outro convênio sem carteirinha não
+            vira (não é obrigatória fora de Unimed); variação de nome
+            "UNIMED CENTRAL" reconhecida; regras antigas (Valor,
+            Retorno/Cortesia) continuam intactas, sem regressão.
+   v6.44.1 — 2 pedidos do usuário:
+            (1) Início: confirmado — os 6 cards (Hoje e Mês atual) agora
+            ficam em 2 linhas visuais separadas por período: uma só com
+            os totais (Atendimentos/Faturamento), outra só com os 4 de
+            andar (Térreo/Coparticipados) logo abaixo. Antes era tudo
+            numa grade só que se rearranjava sozinha conforme a largura
+            da tela, sem separação clara.
+            (2) A regra "Carteirinha obrigatória pra Unimed" (v6.44.0)
+            virou parâmetro configurável — novo card em Configurações →
+            Cadastros do Sistema → "Crítica — Carteirinha obrigatória
+            pra Unimed", com um liga/desliga. Ligado por padrão (mesmo
+            comportamento de antes pra quem não mexer em nada); desligado,
+            a Crítica para de cobrar carteirinha mesmo pra Unimed.
+            Testado: cards de Início continuam populando certo nas 2
+            grades separadas; regra reage ao ligar/desligar o parâmetro;
+            tela de Configurações carrega e salva o estado do checkbox
+            corretamente.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

@@ -153,6 +153,8 @@ async function carregarNomeClinica(){
     estado.graficoCorPrimaria = (resp.configuracoes && resp.configuracoes.grafico_cor_primaria) || null;
     estado.graficoTamanhoTexto = (resp.configuracoes && resp.configuracoes.grafico_tamanho_texto) || 'medio';
     estado.graficoFonte = (resp.configuracoes && resp.configuracoes.grafico_fonte) || 'Inter';
+    estado.criticaCarteirinhaUnimed = resp.configuracoes && resp.configuracoes.critica_carteirinha_unimed !== undefined
+      ? resp.configuracoes.critica_carteirinha_unimed === 'true' : true;
     // Campos travados por papel (ex.: atendente não edita Data em lugar
     // nenhum) — guardado como JSON string na tabela configuracoes, um
     // array de chaves de campo por papel. Se não tiver nada salvo ainda,

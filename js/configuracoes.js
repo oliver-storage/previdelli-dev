@@ -76,6 +76,7 @@ async function atualizarConfiguracoes(){
   prepararSelectListaConfig();
   renderizarItensListaConfig();
   prepararParesSincronizacao();
+  prepararCriticaCarteirinhaUnimed();
   prepararLogoCores();
   prepararTemaGrafico();
   if(estado.logoClinica && !logoBase64Pendente){
@@ -575,6 +576,25 @@ function renderizarParesSincronizacao(){
       estado.paresSincronizacao = estado.paresSincronizacao.filter(p=>p.id!==botao.dataset.id);
       renderizarParesSincronizacao();
     });
+  });
+}
+
+
+let criticaCarteirinhaUnimedPronto = false;
+function prepararCriticaCarteirinhaUnimed(){
+  document.getElementById('config-critica-carteirinha-unimed').checked = estado.criticaCarteirinhaUnimed !== false;
+  if(criticaCarteirinhaUnimedPronto) return;
+  criticaCarteirinhaUnimedPronto = true;
+
+  document.getElementById('botao-salvar-critica-carteirinha-unimed').addEventListener('click', async ()=>{
+    const ligado = document.getElementById('config-critica-carteirinha-unimed').checked;
+    const confirmacao = document.getElementById('confirmacao-critica-carteirinha-unimed');
+    confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Salvando...';
+    const resp = await api('salvarConfiguracao', {chave:'critica_carteirinha_unimed', valor: String(ligado)});
+    if(!resp.ok){ confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível salvar.'; return; }
+    estado.criticaCarteirinhaUnimed = ligado;
+    confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Salvo ✓';
+    setTimeout(()=>{ if(confirmacao.textContent==='Salvo ✓') confirmacao.textContent=''; }, 2500);
   });
 }
 

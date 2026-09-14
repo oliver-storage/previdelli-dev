@@ -250,7 +250,8 @@ const CAMPOS_CRITICOS = [
   {chave:'convenio', rotulo:'Convênio'},
   {chave:'valor', rotulo:'Valor'},
   {chave:'forma_pagamento', rotulo:'Forma de pagamento'},
-  {chave:'atendente', rotulo:'Atendente'}
+  {chave:'atendente', rotulo:'Atendente'},
+  {chave:'carteirinha', rotulo:'Carteirinha (Unimed)'}
 ];
 
 
@@ -271,8 +272,20 @@ function registroSemCobranca(registro){
          ehValorSemCobranca(registro.forma_pagamento);
 }
 
+// Carteirinha é o oposto do padrão acima: normalmente NÃO é obrigatória,
+// só vira pendência quando o convênio é Unimed (que exige o número da
+// carteirinha pra faturar direito).
+function ehConvenioUnimed(convenio){
+  return /UNIMED/i.test(String(convenio||''));
+}
+
 
 function campoCriticoVazio(registro, chave){
+  if(chave==='carteirinha'){
+    if(estado.criticaCarteirinhaUnimed === false) return false;
+    if(!ehConvenioUnimed(registro.convenio)) return false;
+    return !registro.carteirinha || String(registro.carteirinha).trim()==='';
+  }
   if(CAMPOS_DISPENSADOS_SEM_COBRANCA.includes(chave) && registroSemCobranca(registro)){
     return false;
   }
