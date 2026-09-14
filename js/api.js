@@ -342,6 +342,22 @@ async function supabaseApi(acao, dados) {
       return {ok:true, usuarios:resultado};
     }
 
+    // Usuários — criar/editar login (v6.45.0). Nunca existiu tela pra isso
+    // no app; era preciso inserir direto no Table Editor do Supabase.
+    case 'criarUsuario': {
+      const { data: existente } = await supabaseClient.from('usuarios').select('usuario').eq('usuario', dados.usuario).maybeSingle();
+      if(existente) return {ok:false, erro:'Já existe um usuário com esse login.'};
+      const { error } = await supabaseClient.from('usuarios').insert({
+        usuario: dados.usuario, senha: dados.senha, papel: dados.papel, nome_profissional: dados.nome_profissional
+      });
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
+    case 'atualizarUsuario': {
+      const atualizacao = { papel: dados.papel, nome_profissional: dados.nome_profissional };
+      if(dados.senha) atualizacao.senha = dados.senha;
+      const { error } = await supabaseClient.from('usuarios').update(atualizacao).eq('usuario', dados.usuario);
+      return error ? {ok:false, erro:error.message} : {ok:true};
+    }
 
     case 'definirPermissao': {
       const { error } = await supabaseClient.from('permissoes')
@@ -1070,6 +1086,19 @@ function mockApi(acao, dados) {
         return {usuario:u.usuario, papel:u.papel, nome_profissional:u.nome_profissional, permissoes: calcularPermissoesEfetivas(u.papel, sobrescritas)};
       });
       return {ok:true, usuarios};
+    }
+    case 'criarUsuario': {
+      if(demo.usuarios.some(u=>u.usuario===dados.usuario)) return {ok:false, erro:'Já existe um usuário com esse login.'};
+      demo.usuarios.push({usuario:dados.usuario, senha:dados.senha, papel:dados.papel, nome_profissional:dados.nome_profissional});
+      return {ok:true};
+    }
+    case 'atualizarUsuario': {
+      const usuario = demo.usuarios.find(u=>u.usuario===dados.usuario);
+      if(!usuario) return {ok:false, erro:'Usuário não encontrado.'};
+      usuario.papel = dados.papel;
+      usuario.nome_profissional = dados.nome_profissional;
+      if(dados.senha) usuario.senha = dados.senha;
+      return {ok:true};
     }
     case 'definirPermissao': {
       const existente = demo.permissoes.find(p=>p.usuario===dados.usuario && p.chave===dados.chave);

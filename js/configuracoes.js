@@ -110,8 +110,14 @@ async function atualizarConfiguracoes(){
   });
 
   const cartaoPermissoes = document.getElementById('cartao-direitos-privilegios');
+  const cartaoUsuarios = document.getElementById('cartao-usuarios');
   cartaoPermissoes.style.display = estado.papel==='gerente' ? '' : 'none';
-  if(estado.papel==='gerente') await carregarPermissoes();
+  cartaoUsuarios.style.display = estado.papel==='gerente' ? '' : 'none';
+  if(estado.papel==='gerente'){
+    await carregarPermissoes();
+    await carregarUsuarios();
+    prepararFormNovoUsuario();
+  }
 
   ['cartao-profissionais-andares','cartao-profissionais-procedimentos','cartao-profissionais-exames','cartao-atendentes-profissionais','cartao-campos-travados']
     .forEach(id => document.getElementById(id).style.display = podeVerCadastros ? '' : 'none');
@@ -512,6 +518,117 @@ CREATE POLICY acesso_total_anon ON permissoes FOR ALL USING (true) WITH CHECK (t
       }
     });
   });
+}
+
+
+/* ---------------------------------------------------------------------
+   USUÁRIOS — criar/editar login (v6.45.0). Reaproveita
+   listarPermissoesTodos pra listar (já traz usuario/papel/nome), já que
+   essa é a única leitura de `usuarios` que a matriz de permissões também
+   usa — evita duas fontes de verdade divergindo.
+--------------------------------------------------------------------- */
+let usuariosCacheConfig = [];
+let modalUsuarioPronto = false;
+
+async function carregarUsuarios(){
+  const tabela = document.getElementById('tabela-usuarios');
+  tabela.innerHTML = '<tr><td class="vazio">Carregando...</td></tr>';
+  const resp = await api('listarPermissoesTodos', {});
+  if(!resp.ok){ tabela.innerHTML = `<tr><td class="vazio">${resp.erro || 'Não foi possível carregar.'}</td></tr>`; return; }
+  usuariosCacheConfig = resp.usuarios || [];
+  renderizarTabelaUsuarios();
+}
+
+function renderizarTabelaUsuarios(){
+  const tabela = document.getElementById('tabela-usuarios');
+  const rotuloPapel = p => p==='atendente' ? 'Atendente' : (p==='profissional' ? 'Profissional' : (p==='gerente' ? 'Gerente' : p));
+  if(usuariosCacheConfig.length===0){
+    tabela.innerHTML = '<tr><td class="vazio">Nenhum usuário cadastrado ainda.</td></tr>';
+    return;
+  }
+  tabela.innerHTML = `
+    <thead><tr><th>Nome</th><th>Usuário</th><th>Papel</th><th></th></tr></thead>
+    <tbody>${usuariosCacheConfig.map(u=>`
+      <tr data-usuario="${u.usuario}">
+        <td>${u.nome_profissional || u.usuario}</td>
+        <td class="mono">${u.usuario}</td>
+        <td><span class="tag">${rotuloPapel(u.papel)}</span></td>
+        <td><button class="botao secundario pequeno botao-editar-usuario" data-usuario="${u.usuario}">Editar</button></td>
+      </tr>`).join('')}</tbody>`;
+
+  tabela.querySelectorAll('.botao-editar-usuario').forEach(botao=>{
+    botao.addEventListener('click', ()=>{
+      const usuario = usuariosCacheConfig.find(u=>u.usuario===botao.dataset.usuario);
+      if(usuario) abrirModalUsuario(usuario);
+    });
+  });
+}
+
+function prepararFormNovoUsuario(){
+  const botao = document.getElementById('botao-criar-usuario');
+  if(botao.dataset.pronto) return;
+  botao.dataset.pronto = '1';
+  botao.addEventListener('click', async ()=>{
+    const login = document.getElementById('novo-usuario-login').value.trim().toLowerCase();
+    const senha = document.getElementById('novo-usuario-senha').value;
+    const nome = document.getElementById('novo-usuario-nome').value.trim();
+    const papel = document.getElementById('novo-usuario-papel').value;
+    const confirmacao = document.getElementById('confirmacao-criar-usuario');
+    if(!login || !senha || !nome){
+      confirmacao.style.color = 'var(--danger)';
+      confirmacao.textContent = 'Preencha usuário, senha e nome.';
+      return;
+    }
+    confirmacao.style.color = 'var(--ink-400)'; confirmacao.textContent = 'Criando...';
+    const resp = await api('criarUsuario', {usuario: login, senha, nome_profissional: nome, papel});
+    if(!resp.ok){ confirmacao.style.color = 'var(--danger)'; confirmacao.textContent = resp.erro || 'Não foi possível criar.'; return; }
+    confirmacao.style.color = 'var(--teal-700)'; confirmacao.textContent = 'Usuário criado ✓';
+    document.getElementById('novo-usuario-login').value = '';
+    document.getElementById('novo-usuario-senha').value = '';
+    document.getElementById('novo-usuario-nome').value = '';
+    document.getElementById('novo-usuario-papel').value = 'atendente';
+    await carregarUsuarios();
+    setTimeout(()=>{ if(confirmacao.textContent==='Usuário criado ✓') confirmacao.textContent=''; }, 2500);
+  });
+}
+
+function prepararModalUsuario(){
+  if(modalUsuarioPronto) return;
+  modalUsuarioPronto = true;
+  document.getElementById('botao-cancelar-modal-usuario').addEventListener('click', fecharModalUsuario);
+  document.getElementById('sobreposicao-modal-usuario').addEventListener('click', (ev)=>{
+    if(ev.target.id==='sobreposicao-modal-usuario') fecharModalUsuario();
+  });
+  document.getElementById('form-modal-usuario').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    const login = document.getElementById('modal-usuario-login').value;
+    const senha = document.getElementById('modal-usuario-senha').value;
+    const nome = document.getElementById('modal-usuario-nome').value.trim();
+    const papel = document.getElementById('modal-usuario-papel').value;
+    if(!nome){ alert('Preencha o nome exibido.'); return; }
+    const botao = ev.target.querySelector('button[type="submit"]');
+    botao.disabled = true; botao.textContent = 'Salvando...';
+    const resp = await api('atualizarUsuario', {usuario: login, senha, nome_profissional: nome, papel});
+    botao.disabled = false; botao.textContent = 'Salvar usuário';
+    if(!resp.ok){ alert(resp.erro || 'Não foi possível salvar.'); return; }
+    fecharModalUsuario();
+    await carregarUsuarios();
+    await carregarPermissoes();
+  });
+}
+
+function abrirModalUsuario(usuario){
+  prepararModalUsuario();
+  document.getElementById('titulo-modal-usuario').textContent = 'Editar usuário';
+  document.getElementById('modal-usuario-login').value = usuario.usuario;
+  document.getElementById('modal-usuario-senha').value = '';
+  document.getElementById('modal-usuario-nome').value = usuario.nome_profissional || '';
+  document.getElementById('modal-usuario-papel').value = usuario.papel;
+  document.getElementById('sobreposicao-modal-usuario').classList.add('aberta');
+}
+
+function fecharModalUsuario(){
+  document.getElementById('sobreposicao-modal-usuario').classList.remove('aberta');
 }
 
 

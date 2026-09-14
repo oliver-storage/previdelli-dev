@@ -1630,6 +1630,28 @@
             grades separadas; regra reage ao ligar/desligar o parâmetro;
             tela de Configurações carrega e salva o estado do checkbox
             corretamente.
+   v6.45.0 — Novo card "Usuários" em Configurações → Direitos e
+            Privilégios (só gerente), a pedido do usuário. Confirmado
+            antes que essa funcionalidade NUNCA existiu no app (checado
+            todo o histórico do projeto) — dar acesso a alguém sempre
+            exigiu inserir a linha manualmente no Table Editor do
+            Supabase. Agora tem tela própria:
+            • Criar: usuário (login), senha, nome exibido, papel
+              (Atendente/Profissional/Gerente) — bloqueia se o login já
+              existir.
+            • Listar: tabela com todos os usuários (reaproveita a mesma
+              leitura já usada pela matriz de Direitos e Privilégios,
+              pra não ter duas fontes divergentes).
+            • Editar: modal flutuante (mesmo padrão do Material) — nome,
+              papel, e senha nova opcional (em branco não troca). Login
+              em si não é editável (é a chave).
+            Novo usuário nasce com o pacote de permissões padrão do papel
+            escolhido; dá pra ajustar fino na matriz de Direitos e
+            Privilégios logo abaixo, como já era.
+            Requer SQL: nenhum (usa a tabela `usuarios` que já existe).
+            Testado: criar usuário novo e logar com ele funciona; editar
+            nome/papel/senha reflete no login seguinte; criar com login
+            duplicado é bloqueado com mensagem clara.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";

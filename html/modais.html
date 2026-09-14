@@ -118,3 +118,27 @@
     </div>
   </div>
 </div>
+
+<div class="sobreposicao" id="sobreposicao-modal-usuario">
+  <div class="modal">
+    <h3 id="titulo-modal-usuario">Editar usuário</h3>
+    <form id="form-modal-usuario">
+      <div class="grade-form">
+        <div class="campo"><label>Usuário (login)</label><input type="text" id="modal-usuario-login" disabled></div>
+        <div class="campo"><label>Nova senha (deixe em branco pra não trocar)</label><input type="text" id="modal-usuario-senha"></div>
+        <div class="campo" style="grid-column:1/-1;"><label>Nome exibido</label><input type="text" id="modal-usuario-nome" required></div>
+        <div class="campo"><label>Papel</label>
+          <select id="modal-usuario-papel">
+            <option value="atendente">Atendente</option>
+            <option value="profissional">Profissional</option>
+            <option value="gerente">Gerente</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-acoes">
+        <button type="button" class="botao sutil" id="botao-cancelar-modal-usuario">Cancelar</button>
+        <button type="submit" class="botao">Salvar usuário</button>
+      </div>
+    </form>
+  </div>
+</div>

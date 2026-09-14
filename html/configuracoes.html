@@ -287,6 +287,34 @@
 
       <!-- ========== DIREITOS E PRIVILÉGIOS ========== -->
       <div class="sub-painel" id="config-direitos">
+            <div class="cartao" id="cartao-usuarios" style="max-width:100%;">
+              <h3>Usuários</h3>
+              <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
+                Cadastre quem pode acessar o sistema (usuário/senha) e o papel de cada um. Novo usuário
+                nasce com o pacote de permissões padrão do papel — ajuste em Direitos e Privilégios, abaixo,
+                se precisar liberar ou travar algo além do padrão.
+              </p>
+              <div class="grade-form" style="margin-bottom:16px;">
+                <div class="campo"><label>Usuário (login)</label><input type="text" id="novo-usuario-login"></div>
+                <div class="campo"><label>Senha</label><input type="text" id="novo-usuario-senha"></div>
+                <div class="campo"><label>Nome exibido</label><input type="text" id="novo-usuario-nome"></div>
+                <div class="campo"><label>Papel</label>
+                  <select id="novo-usuario-papel">
+                    <option value="atendente">Atendente</option>
+                    <option value="profissional">Profissional</option>
+                    <option value="gerente">Gerente</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                <button class="botao secundario" id="botao-criar-usuario">Criar usuário</button>
+                <span id="confirmacao-criar-usuario" style="font-size:13px;font-weight:600;"></span>
+              </div>
+              <div class="tabela-scroll">
+                <table id="tabela-usuarios"></table>
+              </div>
+            </div>
+
             <div class="cartao" id="cartao-direitos-privilegios" style="max-width:100%;">
               <h3>Direitos e Privilégios</h3>
               <p style="margin:-8px 0 16px;color:var(--ink-400);font-size:12.5px;">
