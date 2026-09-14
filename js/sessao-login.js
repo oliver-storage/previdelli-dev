@@ -1,37 +1,16 @@
 /* =====================================================================
    ProdClin — sessao-login.js
-   Sessão salva no localStorage, tela de login, modal 'Minha conta' e nome da clínica exibido
-   no topo/tela de login.
+   Tela de login, modal 'Minha conta' e nome da clínica exibido no topo/
+   tela de login. Sessão NÃO é mais salva entre visitas (v6.45.1, a
+   pedido do usuário) — todo carregamento da página exige login de novo,
+   pra nunca rodar com permissões desatualizadas guardadas de uma sessão
+   antiga (causou confusão real: usuário logado ANTES de ganhar uma
+   permissão nova continuava sem vê-la até deslogar/logar, mesmo com a
+   permissão já certa no banco).
    Este arquivo é carregado via <script src> em index.html, na mesma ordem
    em que aparecia originalmente dentro do <script> único — variáveis e
    funções continuam compartilhando o escopo global, exatamente como antes.
 ===================================================================== */
-
-const CHAVE_SESSAO = 'prodclin_sessao';
-
-
-function salvarSessao(){
-  try{
-    localStorage.setItem(CHAVE_SESSAO, JSON.stringify({
-      usuario: estado.usuario, papel: estado.papel, nomeProfissional: estado.nomeProfissional,
-      permissoes: estado.permissoes
-    }));
-  }catch(e){ /* navegador pode bloquear localStorage (ex.: modo privado) — segue sem persistir sessão */ }
-}
-
-
-function limparSessao(){
-  try{ localStorage.removeItem(CHAVE_SESSAO); }catch(e){}
-}
-
-
-function carregarSessaoSalva(){
-  try{
-    const bruto = localStorage.getItem(CHAVE_SESSAO);
-    return bruto ? JSON.parse(bruto) : null;
-  }catch(e){ return null; }
-}
-
 
 /* ---------------------------------------------------------------------
    LOGIN
@@ -40,19 +19,6 @@ if(MODO_DEMO){
   document.getElementById('contas-demo').innerHTML =
     '<b>Contas de demonstração</b><br>Gerente → usuário <b>gerente</b> / senha <b>gerente123</b><br>Profissional → usuário <b>angelina</b> / senha <b>123</b><br>Atendente → usuário <b>kaillany</b> / senha <b>123</b>';
 }
-
-
-// Se já existir uma sessão salva de uma visita anterior, entra direto —
-// sem isso, atualizar a página (F5) sempre derrubava a pessoa pro login.
-(function tentarRetomarSessao(){
-  const sessao = carregarSessaoSalva();
-  if(!sessao || !sessao.usuario) return;
-  estado.usuario = sessao.usuario;
-  estado.papel = sessao.papel;
-  estado.nomeProfissional = sessao.nomeProfissional;
-  estado.permissoes = sessao.permissoes || {};
-  iniciarApp().catch(()=>limparSessao());
-})();
 
 
 document.getElementById('form-login').addEventListener('submit', async (ev)=>{
@@ -68,7 +34,6 @@ document.getElementById('form-login').addEventListener('submit', async (ev)=>{
     estado.papel = resp.papel;
     estado.nomeProfissional = resp.nomeProfissional;
     estado.permissoes = resp.permissoes || {};
-    salvarSessao();
     await iniciarApp();
   }catch(e){
     erroEl.textContent = 'Erro de conexão com o servidor.';
@@ -77,7 +42,6 @@ document.getElementById('form-login').addEventListener('submit', async (ev)=>{
 
 
 document.getElementById('botao-sair').addEventListener('click', ()=>{
-  limparSessao();
   location.reload();
 });
 
@@ -130,7 +94,6 @@ document.getElementById('form-conta').addEventListener('submit', async (ev)=>{
 
   estado.nomeProfissional = novoNome;
   document.getElementById('nome-usuario-topo').textContent = novoNome;
-  salvarSessao();
   mensagemEl.style.color = 'var(--teal-700)';
   mensagemEl.textContent = 'Salvo com sucesso!';
   setTimeout(()=>document.getElementById('sobreposicao-conta').classList.remove('aberta'), 900);

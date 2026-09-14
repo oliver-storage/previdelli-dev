@@ -1652,6 +1652,23 @@
             Testado: criar usuário novo e logar com ele funciona; editar
             nome/papel/senha reflete no login seguinte; criar com login
             duplicado é bloqueado com mensagem clara.
+   v6.45.1 — Removida a persistência de sessão (localStorage), a pedido
+            do usuário. Causa raiz de um bug real reportado: Vanessa
+            (usuária nova, papel Atendente) tinha logado ANTES de ganhar
+            as permissões de Estoque — o sistema guardava permissões
+            daquele momento no navegador e as reaplicava a cada F5/nova
+            aba, mesmo com o banco já certo. Resultado: aba Estoque
+            nunca aparecia pra ela até deslogar e logar de novo (o que
+            resolveu, confirmando a causa).
+            Agora não guarda mais nada — toda vez que a página carrega,
+            pede login de novo, e as permissões vêm sempre frescas do
+            banco na hora. Efeito colateral aceito conscientemente: F5
+            derruba pro login (era o motivo original de ter essa
+            persistência) — só o usuário disse que prefere assim, pra
+            nunca mais rodar com permissão desatualizada guardada.
+            Testado: localStorage não é mais tocado em nenhum ponto do
+            fluxo (carregar a página, logar, sair); login continua
+            funcionando normal, só sem persistir nada.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
