@@ -31,7 +31,7 @@ function prepararSubNavEstoque(){
     'estoque-solicitar': podeSolicitar,
     'estoque-dispensar': podeDispensar,
     'estoque-dispensados': podeSolicitar || podeDispensar,
-    'estoque-relatorio': podeEditar || podeDispensar
+    'estoque-relatorio': temPermissao('ver_relatorio_estoque')
   };
   const rotulos = {'estoque-materiais':'Fornecedor','estoque-entrada':'Material','estoque-solicitar':'Solicitações','estoque-dispensar':'Dispensação <span id="badge-dispensacao-pendente" class="badge-alerta" style="display:none;"></span>','estoque-dispensados':'Dispensados','estoque-relatorio':'Relatório'};
   const disponiveis = Object.keys(visibilidade).filter(id=>visibilidade[id]);

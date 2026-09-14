@@ -1669,6 +1669,19 @@
             Testado: localStorage não é mais tocado em nenhum ponto do
             fluxo (carregar a página, logar, sair); login continua
             funcionando normal, só sem persistir nada.
+   v6.45.2 — Estoque → Relatório ganhou permissão própria, a pedido do
+            usuário. Antes não tinha checkbox nenhuma pra ele em Direitos
+            e Privilégios — aparecia automaticamente pra qualquer um com
+            "Editar (cadastros, entrada de NF)" OU "Dispensar/Negar", sem
+            jeito de dar as duas primeiras sem dar a terceira junto.
+            Nova permissão "Ver Relatório" no bloco Estoque — agora é
+            independente: só quem tiver ela marcada explicitamente (ou
+            gerente, sempre) vê a sub-aba Relatório.
+            Requer SQL: nenhum (é permissão, não schema).
+            Testado: usuário com Editar+Dispensar mas sem a permissão
+            nova não vê mais Relatório; ligando a permissão, aparece;
+            gerente sempre vê; aparece certo na matriz de Direitos e
+            Privilégios.
 ===================================================================== */
 const SUPABASE_URL = "https://ggasxplnpbpeyzlaiivi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_n9ZDdhwyLuwndOc4qw_JtA_xDumADQ0";
